@@ -1,0 +1,16 @@
+product_id,product_name,category,current_stock,unit_price,unit_cost,days_to_expiry,reorder_point,supplier_lead_days
+P001,Whole Milk 1L,Dairy,90,3.49,2.1,17.0,15,5
+P002,Sourdough Bread,Bakery,21,4.99,2.5,14.0,15,4
+P003,Organic Eggs (12pk),Dairy,13,5.99,3.5,21.0,15,5
+P004,Archi POP's Chips (4pk),Snacks,41,6.49,3.2,,15,4
+P005,Cold Brew Coffee,Beverages,24,4.29,1.8,3.0,15,6
+P006,Greek Yogurt 500g,Dairy,51,3.99,2.2,14.0,15,4
+P007,Sparkling Water (6pk),Beverages,56,5.49,2.8,8.0,15,5
+P008,Dark Chocolate Bar,Snacks,31,3.29,1.5,,15,5
+P009,Fresh Orange Juice 1L,Beverages,44,4.79,2.6,6.0,15,5
+P010,Winter Scarf (Wool),Seasonal,52,19.99,8.0,,15,4
+P011,Summer Hat (Straw),Seasonal,89,14.99,5.5,,15,5
+P012,Trail Mix 250g,Snacks,88,4.49,2.3,,15,5
+P013,Almond Milk 1L,Dairy,72,3.99,2.4,11.0,15,6
+P014,Croissants (4pk),Bakery,77,5.49,2.8,4.0,15,5
+P015,Energy Drink Can,Beverages,77,2.99,1.2,13.0,15,3
