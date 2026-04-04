@@ -1,0 +1,38 @@
+product_id,product_name,category,sub_category,brand,store_section,unit_price,unit_cost,current_stock,reorder_point,supplier_lead_days,shelf_life_days,expiry_date,days_to_expiry,last_restock_date,stock_value,potential_revenue
+P001,Whole Milk 1L,Dairy,Milk,Amul,Refrigerated,52.0,38.0,48,30,4,7,2026-04-11,7,2026-04-02,1824.0,2496.0
+P002,Skimmed Milk 500ml,Dairy,Milk,Mother Dairy,Refrigerated,28.0,20.0,86,25,6,5,2026-04-08,4,2026-03-26,1720.0,2408.0
+P003,Paneer 200g,Dairy,Cheese,Amul,Refrigerated,85.0,60.0,39,15,3,5,2026-04-05,1,2026-04-03,2340.0,3315.0
+P004,Greek Yogurt 400g,Dairy,Yogurt,Epigamia,Refrigerated,80.0,55.0,75,20,7,7,2026-04-07,3,2026-04-01,4125.0,6000.0
+P005,Butter 100g,Dairy,Butter,Amul,Refrigerated,55.0,40.0,57,20,6,30,2026-04-20,16,2026-03-29,2280.0,3135.0
+P006,Cheese Slices 200g,Dairy,Cheese,Britannia,Refrigerated,95.0,68.0,75,15,3,21,2026-04-11,7,2026-03-28,5100.0,7125.0
+P007,Sourdough Bread 400g,Bakery,Bread,Modern,Bakery Shelf,65.0,40.0,5,20,7,4,2026-04-08,4,2026-03-22,200.0,325.0
+P008,Multigrain Bread 400g,Bakery,Bread,Harvest Gold,Bakery Shelf,60.0,38.0,86,20,7,4,2026-04-05,1,2026-04-03,3268.0,5160.0
+P009,Butter Croissant 4pk,Bakery,Pastry,La Boulange,Bakery Shelf,90.0,58.0,65,15,1,3,2026-04-07,3,2026-03-31,3770.0,5850.0
+P010,Digestive Biscuits 250g,Bakery,Biscuits,McVitie's,Dry Goods,55.0,35.0,141,25,1,180,2026-09-26,175,2026-04-01,4935.0,7755.0
+P011,Cold Brew Coffee 250ml,Beverages,Coffee,Blue Tokai,Refrigerated,85.0,52.0,86,20,4,7,2026-04-06,2,2026-03-22,4472.0,7310.0
+P012,Sparkling Water 500ml,Beverages,Water,Evian,Beverages Aisle,60.0,38.0,113,30,6,365,2026-09-28,177,2026-03-31,4294.0,6780.0
+P013,Fresh Orange Juice 1L,Beverages,Juice,Tropicana,Refrigerated,95.0,62.0,6,20,5,5,2026-04-06,2,2026-04-02,372.0,570.0
+P014,Green Tea 20 bags,Beverages,Tea,Tetley,Dry Goods,120.0,75.0,23,15,5,730,2026-05-03,29,2026-03-26,1725.0,2760.0
+P015,Energy Drink 250ml,Beverages,Energy,Monster,Beverages Aisle,115.0,72.0,67,20,5,180,2026-06-17,74,2026-04-01,4824.0,7705.0
+P016,Coconut Water 330ml,Beverages,Water,Raw Pressery,Refrigerated,70.0,44.0,54,25,1,14,2026-04-06,2,2026-04-01,2376.0,3780.0
+P017,Almond Milk 1L,Beverages,Plant Milk,Epigamia,Refrigerated,130.0,85.0,43,15,5,14,2026-04-12,8,2026-03-30,3655.0,5590.0
+P018,Archi POPs Chips 4pk,Snacks,Chips,Archi POP's,Snacks Aisle,120.0,72.0,44,20,5,180,2026-06-27,84,2026-03-30,3168.0,5280.0
+P019,Trail Mix 250g,Snacks,Nuts,Happilo,Snacks Aisle,180.0,110.0,49,15,5,180,2026-05-04,30,2026-04-03,5390.0,8820.0
+P020,Dark Chocolate 70% 100g,Snacks,Chocolate,Amano,Snacks Aisle,95.0,58.0,73,15,4,365,2026-10-12,191,2026-03-26,4234.0,6935.0
+P021,Popcorn Caramel 100g,Snacks,Popcorn,Act II,Snacks Aisle,45.0,27.0,113,25,7,180,2026-08-07,125,2026-03-24,3051.0,5085.0
+P022,Rice Crackers 150g,Snacks,Crackers,Bingo,Snacks Aisle,55.0,33.0,70,20,5,180,2026-09-19,168,2026-03-25,2310.0,3850.0
+P023,Roasted Peanuts 200g,Snacks,Nuts,Farmley,Snacks Aisle,75.0,46.0,130,20,4,270,2026-04-15,11,2026-03-26,5980.0,9750.0
+P024,Bananas 6pk,Produce,Fruit,Local,Produce,40.0,22.0,22,20,5,5,2026-04-09,5,2026-03-25,484.0,880.0
+P025,Baby Spinach 150g,Produce,Leafy Green,Local,Produce,45.0,25.0,8,15,4,4,2026-04-06,2,2026-03-27,200.0,360.0
+P026,Cherry Tomatoes 250g,Produce,Vegetables,Local,Produce,60.0,35.0,26,15,1,5,2026-04-09,5,2026-03-31,910.0,1560.0
+P027,Avocado,Produce,Fruit,Local,Produce,55.0,32.0,74,20,4,4,2026-04-08,4,2026-04-03,2368.0,4070.0
+P028,Hand Cream 50ml,Personal Care,Skincare,Vaseline,Personal Care,95.0,58.0,67,15,2,730,2026-08-16,134,2026-03-22,3886.0,6365.0
+P029,Lip Balm SPF15,Personal Care,Lip Care,Carmex,Personal Care,65.0,38.0,99,20,5,730,2026-05-10,36,2026-03-24,3762.0,6435.0
+P030,Travel Shampoo 100ml,Personal Care,Hair Care,Dove,Personal Care,75.0,46.0,64,15,3,730,2027-06-19,441,2026-03-25,2944.0,4800.0
+P031,Dish Soap 500ml,Household,Cleaning,Vim,Household,85.0,52.0,23,15,1,730,2027-06-14,436,2026-04-01,1196.0,1955.0
+P032,Paper Towels 2pk,Household,Paper,Bounty,Household,75.0,46.0,94,15,7,N/A,N/A,N/A,2026-03-29,4324.0,7050.0
+P033,Zip-lock Bags 30pk,Household,Storage,Ziploc,Household,95.0,58.0,42,10,3,N/A,N/A,N/A,2026-04-02,2436.0,3990.0
+P034,Wool Winter Scarf,Seasonal,Winter Wear,Fabindia,Seasonal,499.0,200.0,15,5,1,N/A,N/A,N/A,2026-03-31,3000.0,7485.0
+P035,Sunscreen SPF50 100ml,Seasonal,Summer Care,Neutrogena,Seasonal,395.0,180.0,22,8,3,730,2026-10-14,193,2026-04-03,3960.0,8690.0
+P036,Hand Sanitizer 200ml,Seasonal,Hygiene,Dettol,Personal Care,95.0,52.0,43,10,4,730,2027-05-15,406,2026-04-02,2236.0,4085.0
+P037,Vitamin C Supplements 30s,Seasonal,Health,Himalaya,Personal Care,195.0,95.0,6,10,3,730,2027-04-11,372,2026-04-03,570.0,1170.0
