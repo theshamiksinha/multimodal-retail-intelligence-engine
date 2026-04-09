@@ -37,5 +37,7 @@ export const getFloorPlanStatus = (sessionId) =>
   api.get(`/floorplan/session/${sessionId}/status`);
 export const listFloorPlans = () =>
   api.get('/floorplan/sessions');
+export const deleteFloorPlan = (sessionId) =>
+  api.delete(`/floorplan/session/${sessionId}`);
 
 export default api;

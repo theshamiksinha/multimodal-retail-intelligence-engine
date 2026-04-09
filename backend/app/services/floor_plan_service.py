@@ -290,6 +290,28 @@ def list_sessions() -> list[dict]:
             "floor_plan_url": s.get("floor_plan_preview_url"),
             "zones":       s.get("zones", []),
             "total_people": sum(c.get("people_count", 0) for c in s["cameras"]),
+            "cameras": [
+                {
+                    "id":       c["id"],
+                    "name":     c["name"],
+                    "x_pct":    c["x_pct"],
+                    "y_pct":    c["y_pct"],
+                    "has_video": bool(c.get("video_path")),
+                }
+                for c in s["cameras"]
+            ],
         }
         for sid, s in floor_plan_sessions.items()
     ]
+
+
+def delete_session(session_id: str):
+    """Remove a floor plan session and clean up its generated heatmap file."""
+    session = _get_session(session_id)
+    heatmap_path = f"static/heatmaps/fp_{session_id}.png"
+    if os.path.exists(heatmap_path):
+        try:
+            os.remove(heatmap_path)
+        except OSError:
+            pass
+    del floor_plan_sessions[session_id]

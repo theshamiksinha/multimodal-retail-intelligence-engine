@@ -121,3 +121,13 @@ async def get_status(session_id: str):
 @router.get("/sessions")
 async def list_sessions():
     return {"sessions": floor_plan_service.list_sessions()}
+
+
+@router.delete("/session/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a floor plan session and its generated heatmap."""
+    try:
+        floor_plan_service.delete_session(session_id)
+        return {"message": "Floor plan deleted"}
+    except ValueError as e:
+        raise HTTPException(404, str(e))

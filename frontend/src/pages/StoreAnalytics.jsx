@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, MapPin, Clock, RefreshCw } from 'lucide-react';
-import { getSalesSummary, listFloorPlans } from '../api';
+import { Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { getSalesSummary, listFloorPlans, deleteFloorPlan } from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function StoreAnalytics() {
   const [sales, setSales] = useState(null);
-  const [floors, setFloors] = useState([]);         // completed floor plan sessions
+  const [floors, setFloors] = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [editingFloor, setEditingFloor] = useState(null);   // floor object being edited
+  const [confirmDelete, setConfirmDelete] = useState(null); // session_id pending deletion
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('heatmap');
 
@@ -21,19 +24,44 @@ export default function StoreAnalytics() {
       listFloorPlans().catch(() => null),
     ]);
     setSales(s?.data || null);
-    const doneFloors = (f?.data?.sessions || []).filter((fl) => fl.status === 'done');
-    setFloors(doneFloors);
-    if (doneFloors.length > 0 && !selectedFloor) {
-      setSelectedFloor(doneFloors[0]);
-    }
+    const allFloors = (f?.data?.sessions || []);
+    setFloors(allFloors);
+    setSelectedFloor((prev) => {
+      if (!prev && allFloors.length > 0) return allFloors[0];
+      if (prev) return allFloors.find((fl) => fl.session_id === prev.session_id) || allFloors[0] || null;
+      return null;
+    });
     setLoading(false);
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const handleSetupComplete = (data) => {
-    loadData(); // refresh floor list
+  const handleSetupComplete = () => loadData();
+
+  const handleEditComplete = () => {
+    setEditingFloor(null);
+    loadData();
   };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await deleteFloorPlan(confirmDelete);
+      setConfirmDelete(null);
+      const updated = floors.filter((f) => f.session_id !== confirmDelete);
+      setFloors(updated);
+      if (selectedFloor?.session_id === confirmDelete) {
+        setSelectedFloor(updated[0] || null);
+      }
+    } catch (e) {
+      alert('Delete failed: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const doneFloors = floors.filter((f) => f.status === 'done');
 
   return (
     <div className="space-y-5">
@@ -54,33 +82,79 @@ export default function StoreAnalytics() {
         </div>
       </div>
 
-      {/* Floor selector tabs (only if more than one floor) */}
-      {floors.length > 1 && (
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
+      {/* Floor selector tabs */}
+      {floors.length > 0 && (
+        <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg w-fit">
           {floors.map((floor) => (
             <button
               key={floor.session_id}
               onClick={() => setSelectedFloor(floor)}
-              className={`px-4 py-2 rounded-md text-sm transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm transition-colors flex items-center gap-1.5 ${
                 selectedFloor?.session_id === floor.session_id
                   ? 'bg-white text-slate-800 shadow-sm font-medium'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               {floor.floor_name}
+              {floor.status !== 'done' && (
+                <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-normal">
+                  {floor.status}
+                </span>
+              )}
             </button>
           ))}
         </div>
       )}
 
-      {/* Section tabs */}
-      {floors.length > 0 && (
+      {/* Floor actions bar (shown when a floor is selected) */}
+      {selectedFloor && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditingFloor(selectedFloor)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:border-slate-300"
+          >
+            <Edit2 size={12} /> Edit Cameras / Upload Videos
+          </button>
+          {confirmDelete === selectedFloor.session_id ? (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+              <AlertTriangle size={13} className="text-red-500 shrink-0" />
+              <span className="text-xs text-red-700">Delete "{selectedFloor.floor_name}"?</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="text-xs text-slate-400 hover:text-slate-600"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(selectedFloor.session_id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-200 text-red-500 rounded-lg hover:bg-red-50"
+            >
+              <Trash2 size={12} /> Delete Floor
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Section tabs (only for done floors) */}
+      {selectedFloor?.status === 'done' && (
         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
           {['heatmap', 'zones', 'sales trends'].map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 rounded-md text-sm capitalize transition-colors ${
                 activeTab === tab ? 'bg-white text-slate-800 shadow-sm font-medium' : 'text-slate-500 hover:text-slate-700'
-              }`}>
+              }`}
+            >
               {tab}
             </button>
           ))}
@@ -104,8 +178,30 @@ export default function StoreAnalytics() {
         </div>
       )}
 
+      {/* ── Setup / not yet processed state ── */}
+      {selectedFloor && selectedFloor.status !== 'done' && (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+          <MapPin size={32} className="text-slate-300 mx-auto mb-3" />
+          <h3 className="font-semibold text-slate-600 mb-1">{selectedFloor.floor_name}</h3>
+          <p className="text-sm text-slate-400 mb-4">
+            {selectedFloor.status === 'processing'
+              ? 'CV pipeline is running — refresh in a moment.'
+              : selectedFloor.status === 'error'
+              ? 'Processing failed. Edit this floor to upload videos and try again.'
+              : `${selectedFloor.num_cameras} camera${selectedFloor.num_cameras !== 1 ? 's' : ''} placed. Upload footage and run the CV pipeline to generate heatmaps.`}
+          </p>
+          <button
+            onClick={() => setEditingFloor(selectedFloor)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
+          >
+            <Edit2 size={14} />
+            {selectedFloor.status === 'error' ? 'Edit & Retry' : 'Upload Videos & Process'}
+          </button>
+        </div>
+      )}
+
       {/* ── Heatmap tab ── */}
-      {activeTab === 'heatmap' && selectedFloor && (
+      {activeTab === 'heatmap' && selectedFloor?.status === 'done' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
             <h3 className="font-semibold text-slate-800 mb-3">
@@ -115,9 +211,15 @@ export default function StoreAnalytics() {
               <>
                 <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-lg" />
                 <div className="flex gap-4 mt-3 text-xs text-slate-500">
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-sm inline-block" /> High Traffic</span>
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" /> Medium</span>
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-500 rounded-sm inline-block" /> Low</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 bg-red-500 rounded-sm inline-block" /> High Traffic
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 bg-yellow-400 rounded-sm inline-block" /> Medium
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 bg-blue-500 rounded-sm inline-block" /> Low
+                  </span>
                 </div>
               </>
             ) : (
@@ -141,10 +243,13 @@ export default function StoreAnalytics() {
                   }>{zone.density_score}</span>
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full">
-                  <div className={`h-1.5 rounded-full ${
-                    zone.level.includes('High') ? 'bg-red-400' :
-                    zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
-                  }`} style={{ width: `${zone.density_score * 100}%` }} />
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      zone.level.includes('High') ? 'bg-red-400' :
+                      zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
+                    }`}
+                    style={{ width: `${zone.density_score * 100}%` }}
+                  />
                 </div>
                 <p className="text-xs text-slate-400 mt-1">{zone.description}</p>
               </div>
@@ -159,7 +264,7 @@ export default function StoreAnalytics() {
       )}
 
       {/* ── Zones tab ── */}
-      {activeTab === 'zones' && selectedFloor && (
+      {activeTab === 'zones' && selectedFloor?.status === 'done' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {selectedFloor.zones?.length > 0 ? selectedFloor.zones.map((zone, i) => (
             <div key={i} className="bg-white rounded-xl border border-slate-200 p-5">
@@ -221,10 +326,17 @@ export default function StoreAnalytics() {
               <div style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={sales.categories} dataKey="revenue" nameKey="category"
-                      cx="50%" cy="50%" outerRadius={100}
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}>
-                      {sales.categories.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie
+                      data={sales.categories}
+                      dataKey="revenue"
+                      nameKey="category"
+                      cx="50%" cy="50%"
+                      outerRadius={100}
+                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {sales.categories.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
                     </Pie>
                     <Tooltip />
                   </PieChart>
@@ -239,11 +351,18 @@ export default function StoreAnalytics() {
         </div>
       )}
 
-      {/* Floor plan setup modal */}
+      {/* ── Modals ── */}
       {showSetup && (
         <FloorPlanSetup
           onClose={() => setShowSetup(false)}
           onComplete={handleSetupComplete}
+        />
+      )}
+      {editingFloor && (
+        <FloorPlanSetup
+          editSession={editingFloor}
+          onClose={() => setEditingFloor(null)}
+          onComplete={handleEditComplete}
         />
       )}
     </div>
