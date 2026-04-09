@@ -28,7 +28,7 @@ class CustomJSONResponse(JSONResponse):
         return json.dumps(content, cls=NumpyEncoder, ensure_ascii=False).encode("utf-8")
 
 
-from app.routers import video_analytics, sales_inventory, marketing, advisor
+from app.routers import video_analytics, sales_inventory, marketing, advisor, floor_plan
 
 app = FastAPI(
     title="Retail Intelligence Platform",
@@ -53,6 +53,7 @@ app.include_router(video_analytics.router, prefix="/api/video", tags=["Video Ana
 app.include_router(sales_inventory.router, prefix="/api/sales", tags=["Sales & Inventory"])
 app.include_router(marketing.router, prefix="/api/marketing", tags=["Marketing"])
 app.include_router(advisor.router, prefix="/api/advisor", tags=["AI Advisor"])
+app.include_router(floor_plan.router, prefix="/api/floorplan", tags=["Floor Plan"])
 
 
 @app.get("/")

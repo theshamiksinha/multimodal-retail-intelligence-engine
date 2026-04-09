@@ -24,4 +24,18 @@ export const chatWithAdvisor = (message, sessionId = 'default') =>
   api.post('/advisor/chat', { message, session_id: sessionId });
 export const clearAdvisorSession = (sessionId) => api.delete(`/advisor/session/${sessionId}`);
 
+// Floor Plan & Multi-Camera Heatmap
+export const createFloorPlanSession = (formData) =>
+  api.post('/floorplan/session', formData, { timeout: 30000 });
+export const saveCameraLayout = (sessionId, cameras) =>
+  api.post(`/floorplan/session/${sessionId}/cameras`, { cameras });
+export const uploadCameraVideo = (sessionId, cameraId, formData) =>
+  api.post(`/floorplan/session/${sessionId}/camera/${cameraId}/video`, formData, { timeout: 120000 });
+export const processFloorPlan = (sessionId) =>
+  api.post(`/floorplan/session/${sessionId}/process`);
+export const getFloorPlanStatus = (sessionId) =>
+  api.get(`/floorplan/session/${sessionId}/status`);
+export const listFloorPlans = () =>
+  api.get('/floorplan/sessions');
+
 export default api;

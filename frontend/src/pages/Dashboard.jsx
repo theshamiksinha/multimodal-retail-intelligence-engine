@@ -1,34 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, AreaChart, Area
-} from 'recharts';
-import { TrendingUp, Users, DollarSign, AlertTriangle, ArrowRight } from 'lucide-react';
-import { getDemoAnalytics, getSalesSummary, getInventoryStatus } from '../api';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown } from 'lucide-react';
+import { getSalesSummary, getInventoryStatus, listFloorPlans } from '../api';
 
 export default function Dashboard() {
-  const [analytics, setAnalytics] = useState(null);
   const [sales, setSales] = useState(null);
   const [inventory, setInventory] = useState(null);
+  const [floors, setFloors] = useState([]);
+  const [selectedFloor, setSelectedFloor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     Promise.all([
-      getDemoAnalytics().catch(() => null),
       getSalesSummary().catch(() => null),
       getInventoryStatus().catch(() => null),
+      listFloorPlans().catch(() => null),
     ])
-      .then(([a, s, i]) => {
-        setAnalytics(a?.data || null);
+      .then(([s, i, f]) => {
         setSales(s?.data || null);
         setInventory(i?.data || null);
+        const doneFloors = (f?.data?.sessions || []).filter((fl) => fl.status === 'done');
+        setFloors(doneFloors);
+        if (doneFloors.length > 0) setSelectedFloor(doneFloors[0]);
       })
-      .catch((e) => {
-        console.error('Dashboard load error:', e);
-        setError(e.message);
-      })
+      .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -37,7 +34,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-500">Loading dashboard data...</p>
+          <p className="text-slate-500">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -47,8 +44,8 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center text-red-500">
-          <p>Error loading data: {error}</p>
-          <p className="text-sm text-slate-400 mt-2">Make sure the backend is running on port 8000</p>
+          <p>Error: {error}</p>
+          <p className="text-sm text-slate-400 mt-1">Make sure the backend is running on port 8000</p>
         </div>
       </div>
     );
@@ -58,26 +55,22 @@ export default function Dashboard() {
     {
       label: 'Total Revenue (90d)',
       value: sales ? '$' + Number(sales.total_revenue).toLocaleString() : '--',
-      icon: DollarSign,
-      color: 'bg-green-50 text-green-600',
+      icon: DollarSign, color: 'bg-green-50 text-green-600',
     },
     {
       label: 'Items Sold',
       value: sales ? Number(sales.total_items_sold).toLocaleString() : '--',
-      icon: TrendingUp,
-      color: 'bg-blue-50 text-blue-600',
+      icon: TrendingUp, color: 'bg-blue-50 text-blue-600',
     },
     {
-      label: 'Customers Detected',
-      value: analytics ? String(analytics.total_people) : '--',
-      icon: Users,
-      color: 'bg-purple-50 text-purple-600',
+      label: 'Floors Configured',
+      value: String(floors.length),
+      icon: MapPin, color: 'bg-purple-50 text-purple-600',
     },
     {
       label: 'Expiring Soon',
       value: inventory?.expiring_soon ? String(inventory.expiring_soon.length) : '--',
-      icon: AlertTriangle,
-      color: 'bg-amber-50 text-amber-600',
+      icon: AlertTriangle, color: 'bg-amber-50 text-amber-600',
     },
   ];
 
@@ -86,7 +79,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => {
           const IconComp = stat.icon;
@@ -94,9 +87,7 @@ export default function Dashboard() {
             <div key={i} className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-slate-500">{stat.label}</span>
-                <div className={'p-2 rounded-lg ' + stat.color}>
-                  <IconComp size={16} />
-                </div>
+                <div className={'p-2 rounded-lg ' + stat.color}><IconComp size={16} /></div>
               </div>
               <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
             </div>
@@ -105,37 +96,62 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Heatmap Preview */}
+        {/* Heatmap panel */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800">Store Heatmap Analytics</h2>
-            <Link to="/analytics" className="text-indigo-600 text-sm flex items-center gap-1 hover:underline">
-              View Details <ArrowRight size={14} />
-            </Link>
+            <h2 className="font-semibold text-slate-800">Store Heatmap</h2>
+            <div className="flex items-center gap-2">
+              {/* Floor selector dropdown */}
+              {floors.length > 1 && (
+                <div className="relative">
+                  <select
+                    value={selectedFloor?.session_id || ''}
+                    onChange={(e) => setSelectedFloor(floors.find((f) => f.session_id === e.target.value))}
+                    className="pl-3 pr-8 py-1.5 border border-slate-200 rounded-lg text-xs appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    {floors.map((f) => (
+                      <option key={f.session_id} value={f.session_id}>{f.floor_name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
+                </div>
+              )}
+              {floors.length === 1 && (
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                  {floors[0].floor_name}
+                </span>
+              )}
+              <Link to="/analytics" className="text-indigo-600 text-xs flex items-center gap-1 hover:underline">
+                Details <ArrowRight size={12} />
+              </Link>
+            </div>
           </div>
-          {analytics?.heatmap_url ? (
-            <img
-              src={analytics.heatmap_url}
-              alt="Store heatmap"
-              className="w-full rounded-lg border border-slate-100"
-            />
+
+          {floors.length === 0 ? (
+            <div className="h-64 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
+              <MapPin size={28} />
+              <p className="text-sm font-medium text-slate-500">No heatmap data yet</p>
+              <p className="text-xs text-center">Go to <Link to="/analytics" className="text-indigo-500 hover:underline">Store Analytics</Link> to upload your floor plan and configure cameras</p>
+            </div>
+          ) : selectedFloor?.heatmap_url ? (
+            <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-lg" />
           ) : (
-            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
-              Upload a video to see heatmap
+            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
+              Heatmap processing...
             </div>
           )}
         </div>
 
-        {/* Revenue Trend */}
+        {/* Revenue trend */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-slate-800">Revenue Trend</h2>
-            <Link to="/analytics" className="text-indigo-600 text-sm flex items-center gap-1 hover:underline">
-              View Details <ArrowRight size={14} />
+            <Link to="/analytics" className="text-indigo-600 text-xs flex items-center gap-1 hover:underline">
+              Details <ArrowRight size={12} />
             </Link>
           </div>
           {trendData.length > 0 ? (
-            <div style={{ width: '100%', height: 260 }}>
+            <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trendData}>
                   <defs>
@@ -153,67 +169,76 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
-              No sales data available
+            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
+              No sales data — upload your POS data in Inventory Insights
             </div>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Zone Insights */}
+        {/* Zone highlights (from selected floor) */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-800 mb-4">Retail Insights &amp; Recommendations</h2>
-          {analytics?.zones ? analytics.zones.map((zone, i) => (
+          <h2 className="font-semibold text-slate-800 mb-4">
+            Zone Highlights
+            {selectedFloor && <span className="text-xs text-slate-400 font-normal ml-1">— {selectedFloor.floor_name}</span>}
+          </h2>
+          {selectedFloor?.zones?.length > 0 ? selectedFloor.zones.slice(0, 4).map((zone, i) => (
             <div key={i} className="flex items-start gap-3 mb-3 p-2 rounded-lg hover:bg-slate-50">
-              <div className={'w-2 h-2 mt-2 rounded-full flex-shrink-0 ' + (
+              <div className={'w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ' + (
                 zone.level.includes('High') ? 'bg-red-400' :
                 zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
               )} />
               <div>
                 <p className="text-sm font-medium text-slate-700">{zone.name}</p>
-                <p className="text-xs text-slate-500">{zone.description}</p>
+                <p className="text-xs text-slate-400">{zone.level}</p>
               </div>
             </div>
           )) : (
-            <p className="text-sm text-slate-400">No analytics data</p>
+            <div className="py-8 text-center text-slate-400 text-sm">
+              {floors.length === 0
+                ? 'Configure cameras to see zone insights'
+                : 'No zone data for this floor'}
+            </div>
           )}
         </div>
 
-        {/* Top Products */}
+        {/* Top products */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-800 mb-4">Top Products</h2>
           {topProducts.length > 0 ? (
-            <div style={{ width: '100%', height: 250 }}>
+            <div style={{ height: 230 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topProducts} layout="vertical">
                   <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 9 }} width={90} />
                   <Tooltip />
                   <Bar dataKey="revenue" fill="#6366f1" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-64 flex items-center justify-center text-slate-400 text-sm">No data</div>
+            <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
+              No sales data available
+            </div>
           )}
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick actions */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-800 mb-4">Quick Actions</h2>
           <div className="space-y-3">
-            <Link to="/marketing" className="block p-3 bg-indigo-50 rounded-lg text-sm text-indigo-700 hover:bg-indigo-100 transition-colors">
+            <Link to="/analytics" className="block p-3 bg-indigo-50 rounded-lg text-sm text-indigo-700 hover:bg-indigo-100 transition-colors">
+              Configure Floor Plans & Cameras
+            </Link>
+            <Link to="/marketing" className="block p-3 bg-purple-50 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition-colors">
               Generate Marketing Content
             </Link>
-            <Link to="/assistant" className="block p-3 bg-purple-50 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition-colors">
-              Ask AI Advisor a Question
+            <Link to="/assistant" className="block p-3 bg-green-50 rounded-lg text-sm text-green-700 hover:bg-green-100 transition-colors">
+              Ask AI Advisor
             </Link>
             <Link to="/inventory" className="block p-3 bg-amber-50 rounded-lg text-sm text-amber-700 hover:bg-amber-100 transition-colors">
               Check Inventory Alerts
-            </Link>
-            <Link to="/analytics" className="block p-3 bg-green-50 rounded-lg text-sm text-green-700 hover:bg-green-100 transition-colors">
-              View Store Analytics
             </Link>
           </div>
         </div>
