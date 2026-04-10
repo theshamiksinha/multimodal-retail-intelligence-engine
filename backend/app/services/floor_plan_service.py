@@ -23,20 +23,23 @@ def create_session(floor_plan_path: str, floor_name: str = "Ground Floor") -> st
 
 
 def save_cameras(session_id: str, cameras: list[dict]):
-    """Persist camera layout (id, name, x_pct, y_pct) for a session."""
+    """Persist camera layout (id, name, x_pct, y_pct, fov_*) for a session."""
     session = _get_session(session_id)
     existing = {c["id"]: c for c in session["cameras"]}
     updated = []
     for cam in cameras:
         merged = existing.get(cam["id"], {})
         merged.update({
-            "id":      cam["id"],
-            "name":    cam["name"],
-            "x_pct":   cam["x_pct"],
-            "y_pct":   cam["y_pct"],
-            "video_path":   merged.get("video_path"),
-            "heatmap":      merged.get("heatmap"),
-            "people_count": merged.get("people_count", 0),
+            "id":            cam["id"],
+            "name":          cam["name"],
+            "x_pct":         cam["x_pct"],
+            "y_pct":         cam["y_pct"],
+            "fov_direction": cam.get("fov_direction", merged.get("fov_direction", 90.0)),
+            "fov_range":     cam.get("fov_range",     merged.get("fov_range",     15.0)),
+            "fov_spread":    cam.get("fov_spread",    merged.get("fov_spread",    60.0)),
+            "video_path":    merged.get("video_path"),
+            "heatmap":       merged.get("heatmap"),
+            "people_count":  merged.get("people_count", 0),
         })
         updated.append(merged)
     session["cameras"] = updated
@@ -56,8 +59,10 @@ def process_session(session_id: str) -> dict:
     """
     Run the full pipeline:
       1. YOLOv8 per camera → normalised heatmap
-      2. Voronoi assignment: each floor-plan pixel goes to its nearest camera
-      3. Composite → unified heatmap overlaid on floor plan
+      2. FOV-constrained assignment: each floor-plan pixel is assigned to the
+         nearest camera whose sector (direction, range, spread) covers it.
+         Pixels outside all sectors are left dark on the output image.
+      3. Composite → unified heatmap blended onto floor plan only within sectors.
     """
     session = _get_session(session_id)
     session["status"] = "processing"
@@ -77,65 +82,125 @@ def process_session(session_id: str) -> dict:
         # ── Step 1: per-camera heatmaps ──────────────────────────────────────
         for cam in cameras_with_video:
             raw_heatmap, people_count = _run_yolo_heatmap(cam["video_path"], model)
-            cam["heatmap"]      = raw_heatmap   # shape: (video_h, video_w) float32 0-1
+            cam["heatmap"]      = raw_heatmap   # (video_h, video_w) float32  0-1
             cam["people_count"] = people_count
 
-        # ── Step 2: Voronoi assignment ────────────────────────────────────────
-        # Camera pixel positions on the floor plan
+        # ── Step 2: FOV-constrained assignment ───────────────────────────────
+        # Camera positions in floor-plan pixel space
         cam_px = np.array([
             [c["x_pct"] / 100.0 * fp_w, c["y_pct"] / 100.0 * fp_h]
             for c in cameras_with_video
         ], dtype=np.float32)
 
-        # Coordinate grids (vectorised — no Python loops over pixels)
+        # FOV parameters per camera (angles in radians, radius in pixels)
+        fov_dirs_rad     = np.array([
+            c.get("fov_direction", 90.0) * (np.pi / 180.0)
+            for c in cameras_with_video
+        ], dtype=np.float32)
+        fov_radii_px     = np.array([
+            c.get("fov_range", 100.0) / 100.0 * fp_w
+            for c in cameras_with_video
+        ], dtype=np.float32)
+        fov_half_spreads = np.array([
+            c.get("fov_spread", 360.0) / 2.0 * (np.pi / 180.0)
+            for c in cameras_with_video
+        ], dtype=np.float32)
+
+        # Pixel coordinate grids
         xx, yy = np.meshgrid(
             np.arange(fp_w, dtype=np.float32),
             np.arange(fp_h, dtype=np.float32),
         )
 
-        # Distance from every floor-plan pixel to every camera  (n_cam, fp_h, fp_w)
-        dx = xx[None, :, :] - cam_px[:, 0, None, None]
-        dy = yy[None, :, :] - cam_px[:, 1, None, None]
-        dist2 = dx * dx + dy * dy                          # squared — no sqrt needed
-        nearest = np.argmin(dist2, axis=0)                 # (fp_h, fp_w) → camera index
+        # Displacement from each camera to every pixel  (n_cam, fp_h, fp_w)
+        dx    = xx[None, :, :] - cam_px[:, 0, None, None]
+        dy    = yy[None, :, :] - cam_px[:, 1, None, None]
+        dist2 = dx * dx + dy * dy
+        dist  = np.sqrt(dist2)
 
-        # ── Step 3: composite ─────────────────────────────────────────────────
+        # Signed angular difference between pixel direction and camera direction
+        # (wrapped to [−π, π])
+        abs_angle  = np.arctan2(dy, dx)
+        angle_diff = abs_angle - fov_dirs_rad[:, None, None]
+        angle_diff = (angle_diff + np.pi) % (2.0 * np.pi) - np.pi
+
+        # True where pixel falls inside this camera's FOV sector
+        in_fov = (
+            (dist              <= fov_radii_px[:, None, None]) &
+            (np.abs(angle_diff) <= fov_half_spreads[:, None, None])
+        )                                                    # (n_cam, fp_h, fp_w)
+
+        # Pixels covered by at least one camera
+        covered = in_fov.any(axis=0)                        # (fp_h, fp_w)
+
+        # Among covering cameras, assign each pixel to the nearest one
+        INF       = np.finfo(np.float32).max
+        dist2_fov = np.where(in_fov, dist2, INF)
+        nearest   = np.argmin(dist2_fov, axis=0)            # (fp_h, fp_w)
+        # (argmin on all-INF returns 0; safe because we always AND with `covered`)
+
+        # ── Step 3: composite heatmap ─────────────────────────────────────────
         unified = np.zeros((fp_h, fp_w), dtype=np.float32)
         for i, cam in enumerate(cameras_with_video):
             scaled = cv2.resize(cam["heatmap"], (fp_w, fp_h),
                                 interpolation=cv2.INTER_LINEAR)
-            mask = nearest == i
+            mask = (nearest == i) & covered
             unified[mask] = scaled[mask]
 
-        # Smooth at zone boundaries
+        # Smooth sector boundaries
         unified = gaussian_filter(unified, sigma=10)
+        # Re-apply FOV mask so smoothed values don't bleed outside sectors
+        unified[~covered] = 0.0
 
         # Normalise
         if unified.max() > 0:
             unified = unified / unified.max()
 
-        heatmap_u8   = (unified * 255).astype(np.uint8)
-        heatmap_col  = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
+        heatmap_u8  = (unified * 255).astype(np.uint8)
+        heatmap_col = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
 
-        # Blend with floor plan (alpha composite)
-        overlay = cv2.addWeighted(floor_plan_img, 0.45, heatmap_col, 0.55, 0)
+        # Blend coloured heatmap onto floor plan only within FOV sectors
+        overlay = floor_plan_img.copy()
+        blended = cv2.addWeighted(floor_plan_img, 0.4, heatmap_col, 0.6, 0)
+        overlay[covered] = blended[covered]
 
-        # Draw camera markers on overlay
+        # Draw FOV sector outlines + camera markers
         for cam in cameras_with_video:
-            cx = int(cam["x_pct"] / 100.0 * fp_w)
-            cy = int(cam["y_pct"] / 100.0 * fp_h)
-            cv2.circle(overlay, (cx, cy), 12, (255, 255, 255), -1)
-            cv2.circle(overlay, (cx, cy), 14, (0, 0, 0), 2)
-            # Camera icon (simple cross)
-            cv2.line(overlay, (cx - 6, cy), (cx + 6, cy), (0, 0, 0), 2)
-            cv2.line(overlay, (cx, cy - 6), (cx, cy + 6), (0, 0, 0), 2)
+            cx_i  = int(cam["x_pct"] / 100.0 * fp_w)
+            cy_i  = int(cam["y_pct"] / 100.0 * fp_h)
+            dir_d = cam.get("fov_direction", 90.0)          # degrees
+            sprd  = cam.get("fov_spread",    60.0)          # degrees
+            rad   = max(8, int(cam.get("fov_range", 15.0) / 100.0 * fp_w))
+
+            # Sector outline (polygon approximation of the arc)
+            n_pts  = max(20, int(sprd))
+            angles = np.linspace(
+                (dir_d - sprd / 2) * (np.pi / 180.0),
+                (dir_d + sprd / 2) * (np.pi / 180.0),
+                n_pts,
+            )
+            arc_pts = [
+                (int(cx_i + rad * np.cos(a)), int(cy_i + rad * np.sin(a)))
+                for a in angles
+            ]
+            sector_pts = np.array([(cx_i, cy_i)] + arc_pts, dtype=np.int32)
+            cv2.polylines(overlay, [sector_pts], isClosed=True,
+                          color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+
+            # Camera dot
+            cv2.circle(overlay, (cx_i, cy_i), 10, (255, 255, 255), -1)
+            cv2.circle(overlay, (cx_i, cy_i), 12, (0, 0, 0), 2)
+            cv2.line(overlay, (cx_i - 5, cy_i), (cx_i + 5, cy_i), (0, 0, 0), 2)
+            cv2.line(overlay, (cx_i, cy_i - 5), (cx_i, cy_i + 5), (0, 0, 0), 2)
+
             # Label
             label = cam["name"][:16]
-            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
-            cv2.rectangle(overlay, (cx + 16, cy - th - 4), (cx + 18 + tw, cy + 2),
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
+            cv2.rectangle(overlay,
+                          (cx_i + 14, cy_i - th - 4), (cx_i + 16 + tw, cy_i + 2),
                           (0, 0, 0), -1)
-            cv2.putText(overlay, label, (cx + 17, cy),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1,
+            cv2.putText(overlay, label, (cx_i + 15, cy_i),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1,
                         cv2.LINE_AA)
 
         os.makedirs("static/heatmaps", exist_ok=True)
@@ -145,16 +210,17 @@ def process_session(session_id: str) -> dict:
         session["unified_heatmap_path"] = out_path
         session["status"] = "done"
 
-        # Build zone summary
-        zones = _compute_zone_summary(unified, cameras_with_video, fp_w, fp_h, nearest)
+        # Zone summary (computed only within each camera's FOV pixels)
+        zones = _compute_zone_summary(unified, cameras_with_video, fp_w, fp_h,
+                                      nearest, covered)
         session["zones"] = zones
 
         return {
-            "session_id":     session_id,
-            "heatmap_url":    f"/static/heatmaps/fp_{session_id}.png",
-            "cameras":        _serialise_cameras(cameras_with_video),
-            "zones":          zones,
-            "total_people":   sum(c["people_count"] for c in cameras_with_video),
+            "session_id":   session_id,
+            "heatmap_url":  f"/static/heatmaps/fp_{session_id}.png",
+            "cameras":      _serialise_cameras(cameras_with_video),
+            "zones":        zones,
+            "total_people": sum(c["people_count"] for c in cameras_with_video),
         }
 
     except Exception as exc:
@@ -218,13 +284,21 @@ def _run_yolo_heatmap(video_path: str, model) -> tuple[np.ndarray, int]:
 
 def _compute_zone_summary(unified: np.ndarray, cameras: list,
                            fp_w: int, fp_h: int,
-                           nearest: np.ndarray) -> list[dict]:
-    """Derive per-camera zone stats from the unified heatmap."""
+                           nearest: np.ndarray,
+                           covered: np.ndarray | None = None) -> list[dict]:
+    """Derive per-camera zone stats from the unified heatmap.
+
+    When `covered` is provided the stats are computed only over pixels that
+    fall inside each camera's FOV sector, matching what is shown on the output image.
+    """
     zones = []
     global_max = unified.max() or 1.0
 
     for i, cam in enumerate(cameras):
-        mask = nearest == i
+        if covered is not None:
+            mask = (nearest == i) & covered
+        else:
+            mask = nearest == i
         region = unified[mask]
         avg_density = float(region.mean()) if region.size else 0.0
         score = round(avg_density / global_max, 2)
@@ -254,11 +328,14 @@ def _compute_zone_summary(unified: np.ndarray, cameras: list,
 def _serialise_cameras(cameras: list) -> list[dict]:
     return [
         {
-            "id":           c["id"],
-            "name":         c["name"],
-            "x_pct":        c["x_pct"],
-            "y_pct":        c["y_pct"],
-            "people_count": c["people_count"],
+            "id":            c["id"],
+            "name":          c["name"],
+            "x_pct":         c["x_pct"],
+            "y_pct":         c["y_pct"],
+            "fov_direction": c.get("fov_direction", 90.0),
+            "fov_range":     c.get("fov_range",     15.0),
+            "fov_spread":    c.get("fov_spread",    60.0),
+            "people_count":  c.get("people_count", 0),
         }
         for c in cameras
     ]
@@ -292,11 +369,14 @@ def list_sessions() -> list[dict]:
             "total_people": sum(c.get("people_count", 0) for c in s["cameras"]),
             "cameras": [
                 {
-                    "id":       c["id"],
-                    "name":     c["name"],
-                    "x_pct":    c["x_pct"],
-                    "y_pct":    c["y_pct"],
-                    "has_video": bool(c.get("video_path")),
+                    "id":            c["id"],
+                    "name":          c["name"],
+                    "x_pct":         c["x_pct"],
+                    "y_pct":         c["y_pct"],
+                    "has_video":     bool(c.get("video_path")),
+                    "fov_direction": c.get("fov_direction", 90.0),
+                    "fov_range":     c.get("fov_range",     15.0),
+                    "fov_spread":    c.get("fov_spread",    60.0),
                 }
                 for c in s["cameras"]
             ],
@@ -306,12 +386,30 @@ def list_sessions() -> list[dict]:
 
 
 def delete_session(session_id: str):
-    """Remove a floor plan session and clean up its generated heatmap file."""
+    """Remove a floor plan session and all associated files from disk."""
     session = _get_session(session_id)
-    heatmap_path = f"static/heatmaps/fp_{session_id}.png"
-    if os.path.exists(heatmap_path):
-        try:
-            os.remove(heatmap_path)
-        except OSError:
-            pass
+
+    def _rm(path: str):
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+    # Generated heatmap overlay
+    _rm(f"static/heatmaps/fp_{session_id}.png")
+
+    # Static floor plan preview (served to frontend)
+    preview_url = session.get("floor_plan_preview_url", "")
+    if preview_url:
+        # preview_url is like "/static/floorplans/abc123_plan.png"
+        _rm(preview_url.lstrip("/"))
+
+    # Original uploaded floor plan file
+    _rm(session.get("floor_plan_path"))
+
+    # Uploaded camera videos
+    for cam in session.get("cameras", []):
+        _rm(cam.get("video_path"))
+
     del floor_plan_sessions[session_id]

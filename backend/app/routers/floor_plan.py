@@ -12,8 +12,11 @@ router = APIRouter()
 class CameraLayout(BaseModel):
     id: str
     name: str
-    x_pct: float   # 0–100  (% of floor plan width)
-    y_pct: float   # 0–100  (% of floor plan height)
+    x_pct: float          # 0–100  (% of floor plan width)
+    y_pct: float          # 0–100  (% of floor plan height)
+    fov_direction: float = 90.0   # degrees, 0=right, 90=down
+    fov_range: float = 15.0       # % of container width
+    fov_spread: float = 60.0      # total cone angle in degrees
 
 
 class SaveCamerasRequest(BaseModel):
