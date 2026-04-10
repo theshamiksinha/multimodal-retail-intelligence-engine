@@ -2,7 +2,7 @@ import os
 import json
 from typing import Annotated, TypedDict
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+from langchain_mistralai import ChatMistralAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
@@ -19,11 +19,12 @@ class AdvisorState(TypedDict):
 conversation_sessions: dict[str, list] = {}
 
 
+# Replace get_llm():
 def get_llm():
-    return ChatOpenAI(
-        model="gpt-4o-mini",
+    return ChatMistralAI(
+        model="mistral-large-latest",
         temperature=0.7,
-        api_key=os.getenv("OPENAI_API_KEY"),
+        api_key=os.getenv("MISTRAL_API_KEY"),
     )
 
 
