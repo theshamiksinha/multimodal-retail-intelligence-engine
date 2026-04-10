@@ -1,0 +1,67 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Build/output folders
+dist/
+build/
+out/
+target/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.python-version
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+bin/
+
+# C/C++
+*.o
+*.obj
+*.exe
+*.out
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+.coverage
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package lock files (uncomment only if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
