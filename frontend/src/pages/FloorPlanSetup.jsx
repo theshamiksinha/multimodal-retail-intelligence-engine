@@ -1,11 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload, Camera, Trash2, CheckCircle, Loader2, X,
-  Play, Maximize2, Minimize2,
+  Maximize2, Minimize2,
 } from 'lucide-react';
 import {
   createFloorPlanSession, saveCameraLayout,
-  uploadCameraVideo, processFloorPlan, getFloorPlanStatus,
 } from '../api';
 
 const CAM_COLORS = [
@@ -21,18 +20,15 @@ function generateId() {
 function CameraFOV({ cam, color, cw, ch, onMidDown, onEdgeDown }) {
   const cx = cam.x_pct / 100 * cw;
   const cy = cam.y_pct / 100 * ch;
-  // Use container width as the reference dimension so the range feels consistent
   const r = Math.max(14, cam.fov_range / 100 * cw);
   const dir = cam.fov_direction * (Math.PI / 180);
   const hs  = (cam.fov_spread  / 2) * (Math.PI / 180);
 
-  // Arc endpoints
   const x1 = cx + r * Math.cos(dir - hs);
   const y1 = cy + r * Math.sin(dir - hs);
   const x2 = cx + r * Math.cos(dir + hs);
   const y2 = cy + r * Math.sin(dir + hs);
 
-  // Midpoint of arc (handle for direction + range)
   const mx = cx + r * Math.cos(dir);
   const my = cy + r * Math.sin(dir);
 
@@ -41,7 +37,6 @@ function CameraFOV({ cam, color, cw, ch, onMidDown, onEdgeDown }) {
 
   return (
     <g>
-      {/* Sector fill + outline */}
       <path
         d={d}
         fill={color}
@@ -52,7 +47,7 @@ function CameraFOV({ cam, color, cw, ch, onMidDown, onEdgeDown }) {
         style={{ pointerEvents: 'none' }}
       />
 
-      {/* ── Arc-midpoint handle: drag to rotate + resize ── */}
+      {/* Arc-midpoint handle: drag to rotate + resize */}
       <circle
         cx={mx} cy={my} r={7}
         fill={color}
@@ -62,7 +57,7 @@ function CameraFOV({ cam, color, cw, ch, onMidDown, onEdgeDown }) {
         onMouseDown={(e) => { e.stopPropagation(); onMidDown(e, cam.id); }}
       />
 
-      {/* ── Edge handles: drag to widen / narrow spread ── */}
+      {/* Edge handles: drag to widen / narrow spread */}
       <circle
         cx={x1} cy={y1} r={5.5}
         fill="white"
@@ -173,18 +168,15 @@ function StepUploadPlan({ onDone }) {
 }
 
 // ── Step 1: Place / Edit Cameras ──────────────────────────────────────────────
-function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone, onSaveClose }) {
+function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone }) {
   const containerRef = useRef();
 
-  // Camera position drag
-  const [draggingCam, setDraggingCam]   = useState(null);
-  // FOV handle drag: { type: 'mid'|'edge', camId, cx_pct, cy_pct, fov_direction }
-  const [fovDrag, setFovDrag]           = useState(null);
-  const [didDrag, setDidDrag]           = useState(false);
-  const [saving, setSaving]             = useState(false);
+  const [draggingCam, setDraggingCam]     = useState(null);
+  const [fovDrag, setFovDrag]             = useState(null);
+  const [didDrag, setDidDrag]             = useState(false);
+  const [saving, setSaving]               = useState(false);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
-  // Track container size (updates when fullscreen is toggled etc.)
   useEffect(() => {
     const update = () => {
       if (!containerRef.current) return;
@@ -197,7 +189,6 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
     return () => obs.disconnect();
   }, []);
 
-  // ── Map click → place new camera ──────────────────────────────────────────
   const handleMapClick = (e) => {
     if (didDrag) { setDidDrag(false); return; }
     const rect = containerRef.current.getBoundingClientRect();
@@ -214,7 +205,6 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
     }]);
   };
 
-  // ── Camera dot drag (move camera position) ────────────────────────────────
   const onCamMouseDown = (e, camId) => {
     e.stopPropagation();
     const rect = containerRef.current.getBoundingClientRect();
@@ -227,21 +217,18 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
     });
   };
 
-  // ── FOV mid-handle drag (direction + range) ───────────────────────────────
   const onFovMidDown = useCallback((e, camId) => {
     const cam = cameras.find((c) => c.id === camId);
     if (!cam) return;
     setFovDrag({ type: 'mid', camId, cx_pct: cam.x_pct, cy_pct: cam.y_pct });
   }, [cameras]);
 
-  // ── FOV edge-handle drag (spread angle) ──────────────────────────────────
   const onFovEdgeDown = useCallback((e, camId) => {
     const cam = cameras.find((c) => c.id === camId);
     if (!cam) return;
     setFovDrag({ type: 'edge', camId, cx_pct: cam.x_pct, cy_pct: cam.y_pct, fov_direction: cam.fov_direction });
   }, [cameras]);
 
-  // ── Global mouse move ─────────────────────────────────────────────────────
   const onMouseMove = useCallback((e) => {
     if (draggingCam) {
       setDidDrag(true);
@@ -265,14 +252,12 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
       const dy    = e.clientY - rect.top  - cy_px;
 
       if (fovDrag.type === 'mid') {
-        // Direction follows mouse angle; range follows mouse distance from camera
         const newDir   = Math.atan2(dy, dx) * (180 / Math.PI);
         const newRange = Math.sqrt(dx * dx + dy * dy) / rect.width * 100;
         setCameras((prev) => prev.map((c) => c.id === fovDrag.camId
           ? { ...c, fov_direction: newDir, fov_range: Math.max(3, Math.min(65, newRange)) }
           : c));
       } else {
-        // Spread: angle between mouse direction and camera direction → half-spread
         const angleToMouse = Math.atan2(dy, dx) * (180 / Math.PI);
         let diff = angleToMouse - fovDrag.fov_direction;
         while (diff >  180) diff -= 360;
@@ -299,7 +284,6 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
     };
   }, [onMouseMove, onMouseUp]);
 
-  // ── Save helpers ──────────────────────────────────────────────────────────
   const saveLayout = async () => {
     if (!cameras.length) { alert('Place at least one camera first'); return false; }
     setSaving(true);
@@ -314,12 +298,13 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
     }
   };
 
-  const handleContinue  = async () => { const ok = await saveLayout(); if (ok) onDone(); };
-  const handleSaveClose = async () => { const ok = await saveLayout(); if (ok) onSaveClose(); };
+  const handleFinish = async () => {
+    const ok = await saveLayout();
+    if (ok) onDone();
+  };
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* Instructions */}
       <p className="text-xs text-slate-500 shrink-0 leading-relaxed">
         <strong>Click</strong> the map to add a camera &nbsp;·&nbsp;
         <strong>Drag the camera dot</strong> to reposition &nbsp;·&nbsp;
@@ -327,10 +312,9 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
         <strong>Drag the hollow ○ handles</strong> to widen or narrow the viewing angle
       </p>
 
-      {/* Map + camera list */}
       <div className="flex gap-3 flex-1 min-h-0" style={{ minHeight: 340 }}>
 
-        {/* ── Floor plan map ── */}
+        {/* Floor plan map */}
         <div className="flex-1 min-w-0">
           <div
             ref={containerRef}
@@ -403,7 +387,7 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
           </div>
         </div>
 
-        {/* ── Camera list panel ── */}
+        {/* Camera list panel */}
         <div className="w-52 shrink-0 flex flex-col gap-2 overflow-y-auto">
           <p className="text-xs font-medium text-slate-500 shrink-0">
             {cameras.length} camera{cameras.length !== 1 ? 's' : ''}
@@ -434,212 +418,41 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
                   <Trash2 size={12} />
                 </button>
               </div>
-              {/* FOV info readout */}
               <div className="ml-5 text-[10px] text-slate-400 leading-tight">
-                <span>
-                  {Math.round(cam.fov_spread)}° · {Math.round(cam.fov_range)}% range · {Math.round(cam.fov_direction)}°
-                </span>
+                {Math.round(cam.fov_spread)}° · {Math.round(cam.fov_range)}% range · {Math.round(cam.fov_direction)}°
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-2 shrink-0">
+      {/* Action button */}
+      <div className="shrink-0">
         <button
-          onClick={handleContinue}
+          onClick={handleFinish}
           disabled={!cameras.length || saving}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-          {saving ? 'Saving...' : 'Save & Continue to Videos'}
-        </button>
-        <button
-          onClick={handleSaveClose}
-          disabled={!cameras.length || saving}
-          className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-40"
-        >
-          Save & Close
+          {saving ? 'Saving...' : 'Save & Finish'}
         </button>
       </div>
-    </div>
-  );
-}
-
-// ── Step 2: Upload Footage (optional) ─────────────────────────────────────────
-function StepUploadFootage({ sessionId, cameras, existingVideos, onDone, onClose }) {
-  const [uploads, setUploads] = useState(() => {
-    const init = {};
-    cameras.forEach((cam) => {
-      if (existingVideos?.[cam.id]) {
-        init[cam.id] = { status: 'existing', filename: 'Previously uploaded' };
-      }
-    });
-    return init;
-  });
-  const [processing, setProcessing] = useState(false);
-
-  const handleVideoUpload = async (camId, file) => {
-    if (!file) return;
-    setUploads((prev) => ({ ...prev, [camId]: { status: 'uploading', filename: file.name } }));
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      await uploadCameraVideo(sessionId, camId, fd);
-      setUploads((prev) => ({ ...prev, [camId]: { status: 'done', filename: file.name } }));
-    } catch (e) {
-      setUploads((prev) => ({ ...prev, [camId]: { status: 'error', filename: file.name } }));
-      alert('Upload failed: ' + (e.response?.data?.detail || e.message));
-    }
-  };
-
-  const readyCount = cameras.filter((cam) =>
-    ['done', 'existing'].includes(uploads[cam.id]?.status)
-  ).length;
-
-  const handleProcess = async () => {
-    setProcessing(true);
-    try {
-      await processFloorPlan(sessionId);
-      onDone();
-    } catch (e) {
-      alert('Processing failed: ' + (e.response?.data?.detail || e.message));
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="text-xs text-amber-700">
-          <strong>This step is optional.</strong> Upload CCTV footage to generate heatmaps. You can
-          close now and upload videos later via the <strong>Edit</strong> button on this floor.
-        </p>
-      </div>
-
-      <div className="space-y-2 max-h-80 overflow-auto">
-        {cameras.map((cam, i) => {
-          const upload = uploads[cam.id];
-          return (
-            <div key={cam.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div
-                style={{ background: CAM_COLORS[i % CAM_COLORS.length] }}
-                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-              >
-                <Camera size={12} className="text-white" />
-              </div>
-              <span className="text-sm font-medium text-slate-700 flex-1 min-w-0 truncate">
-                {cam.name}
-              </span>
-
-              {upload?.status === 'uploading' ? (
-                <span className="flex items-center gap-1 text-xs text-indigo-500 shrink-0">
-                  <Loader2 size={12} className="animate-spin" /> Uploading...
-                </span>
-              ) : upload?.status === 'done' ? (
-                <span className="flex items-center gap-1 text-xs text-green-600 shrink-0">
-                  <CheckCircle size={12} />
-                  {upload.filename.length > 20 ? upload.filename.slice(0, 20) + '…' : upload.filename}
-                </span>
-              ) : upload?.status === 'existing' ? (
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="flex items-center gap-1 text-xs text-green-600">
-                    <CheckCircle size={12} /> Uploaded
-                  </span>
-                  <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
-                    Replace
-                    <input type="file" accept="video/*" className="hidden"
-                      onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
-                  </label>
-                </div>
-              ) : upload?.status === 'error' ? (
-                <label className="flex items-center gap-1 text-xs text-red-500 cursor-pointer hover:text-red-700 shrink-0">
-                  <Upload size={12} /> Retry
-                  <input type="file" accept="video/*" className="hidden"
-                    onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
-                </label>
-              ) : (
-                <label className="flex items-center gap-1 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 shrink-0">
-                  <Upload size={12} /> Upload video
-                  <input type="file" accept="video/*" className="hidden"
-                    onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
-                </label>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={handleProcess}
-          disabled={!readyCount || processing}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {processing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-          {processing
-            ? 'Starting pipeline...'
-            : `Run CV Pipeline (${readyCount} camera${readyCount !== 1 ? 's' : ''})`}
-        </button>
-        <button
-          onClick={onClose}
-          className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50"
-        >
-          Save & Close
-        </button>
-      </div>
-
-      {!readyCount && (
-        <p className="text-xs text-center text-slate-400">
-          Upload at least one video to run the CV pipeline, or click "Save & Close" to finish now and add videos later.
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ── Step 3: Processing ────────────────────────────────────────────────────────
-function StepProcessing({ sessionId, onComplete }) {
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await getFloorPlanStatus(sessionId);
-        if (res.data.status === 'done') {
-          clearInterval(interval);
-          onComplete(res.data);
-        } else if (res.data.status === 'error') {
-          clearInterval(interval);
-          alert('Processing error: ' + res.data.error);
-        }
-      } catch (e) {
-        console.error('Poll error', e);
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [sessionId, onComplete]);
-
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <Loader2 size={40} className="animate-spin text-indigo-500" />
-      <p className="text-slate-700 font-medium">Running CV pipeline...</p>
-      <p className="text-xs text-slate-400">YOLOv8 detection + Voronoi heatmap fusion — polling every 3s</p>
     </div>
   );
 }
 
 // ── Modal wrapper ─────────────────────────────────────────────────────────────
-// editSession shape: { session_id, floor_name, floor_plan_url, cameras: [{id, name, x_pct, y_pct, has_video, fov_direction, fov_range, fov_spread}] }
+// editSession shape: { session_id, floor_name, floor_plan_url, cameras: [{id, name, x_pct, y_pct, has_video, fov_*}] }
 export default function FloorPlanSetup({ onClose, onComplete, editSession }) {
   const isEdit = !!editSession;
 
-  // create mode: 0=upload map, 1=cameras, 2=videos, 3=processing
-  // edit   mode:              1=cameras, 2=videos, 3=processing
-  const [step,        setStep]        = useState(isEdit ? 1 : 0);
-  const [expanded,    setExpanded]    = useState(false);
-  const [sessionId,   setSessionId]   = useState(isEdit ? editSession.session_id   : null);
-  const [floorPlanUrl,setFloorPlanUrl]= useState(isEdit ? editSession.floor_plan_url: null);
-  const [cameras,     setCameras]     = useState(
+  // create mode: step 0 = upload map, step 1 = cameras
+  // edit   mode: step 1 = cameras only
+  const [step,         setStep]         = useState(isEdit ? 1 : 0);
+  const [expanded,     setExpanded]     = useState(false);
+  const [sessionId,    setSessionId]    = useState(isEdit ? editSession.session_id    : null);
+  const [floorPlanUrl, setFloorPlanUrl] = useState(isEdit ? editSession.floor_plan_url : null);
+  const [cameras,      setCameras]      = useState(
     isEdit
       ? (editSession.cameras || []).map((c) => ({
           id:            c.id,
@@ -654,15 +467,10 @@ export default function FloorPlanSetup({ onClose, onComplete, editSession }) {
   );
 
   const STEPS = isEdit
-    ? ['Edit Cameras', 'Upload / Update Footage', 'Processing']
-    : ['Name & Upload Map', 'Place Cameras', 'Upload Footage', 'Processing'];
+    ? ['Edit Cameras']
+    : ['Name & Upload Map', 'Place Cameras'];
 
-  // displayStep: 0-indexed position in the STEPS array for the progress bar
   const displayStep = isEdit ? step - 1 : step;
-
-  const existingVideos = isEdit
-    ? (editSession.cameras || []).reduce((acc, c) => { acc[c.id] = c.has_video; return acc; }, {})
-    : {};
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${expanded ? '' : 'p-4'}`}>
@@ -724,29 +532,13 @@ export default function FloorPlanSetup({ onClose, onComplete, editSession }) {
               floorPlanUrl={floorPlanUrl}
               cameras={cameras}
               setCameras={setCameras}
-              onDone={() => setStep(2)}
-              onSaveClose={onClose}
-            />
-          )}
-          {step === 2 && (
-            <StepUploadFootage
-              sessionId={sessionId}
-              cameras={cameras}
-              existingVideos={existingVideos}
-              onDone={() => setStep(3)}
-              onClose={onClose}
-            />
-          )}
-          {step === 3 && (
-            <StepProcessing
-              sessionId={sessionId}
-              onComplete={(data) => { onComplete(data); onClose(); }}
+              onDone={() => { onComplete?.(); onClose(); }}
             />
           )}
         </div>
 
-        {/* Back button */}
-        {displayStep > 0 && step < 3 && (
+        {/* Back button (create mode only, on camera step) */}
+        {displayStep > 0 && (
           <div className="px-5 pb-4 pt-2 border-t border-slate-100 shrink-0">
             <button
               onClick={() => setStep((s) => s - 1)}

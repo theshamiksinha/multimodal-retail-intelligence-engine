@@ -1,21 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle } from 'lucide-react';
-import { getSalesSummary, listFloorPlans, deleteFloorPlan } from '../api';
+import {
+  Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle,
+  Camera, Upload, Play, Loader2, CheckCircle,
+} from 'lucide-react';
+import {
+  getSalesSummary, listFloorPlans, deleteFloorPlan,
+  uploadCameraVideo, processFloorPlan, getFloorPlanStatus,
+} from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 
-const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS     = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
+const CAM_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 export default function StoreAnalytics() {
-  const [sales, setSales] = useState(null);
-  const [floors, setFloors] = useState([]);
+  const [sales, setSales]               = useState(null);
+  const [floors, setFloors]             = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
-  const [showSetup, setShowSetup] = useState(false);
-  const [editingFloor, setEditingFloor] = useState(null);   // floor object being edited
-  const [confirmDelete, setConfirmDelete] = useState(null); // session_id pending deletion
-  const [deleting, setDeleting] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('heatmap');
+  const [showSetup, setShowSetup]       = useState(false);
+  const [editingFloor, setEditingFloor] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting]         = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [activeTab, setActiveTab]       = useState('heatmap');
+
+  // Per-floor video upload tracking (resets when floor changes)
+  const [videoUploads, setVideoUploads] = useState({});
+  const [processing, setProcessing]     = useState(false);
+  const pollRef                         = useRef(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -24,7 +36,7 @@ export default function StoreAnalytics() {
       listFloorPlans().catch(() => null),
     ]);
     setSales(s?.data || null);
-    const allFloors = (f?.data?.sessions || []);
+    const allFloors = f?.data?.sessions || [];
     setFloors(allFloors);
     setSelectedFloor((prev) => {
       if (!prev && allFloors.length > 0) return allFloors[0];
@@ -35,6 +47,68 @@ export default function StoreAnalytics() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // Reset upload state when switching floors; auto-poll if already processing
+  useEffect(() => {
+    setVideoUploads({});
+    setActiveTab('heatmap');
+    if (selectedFloor?.status === 'processing' && !processing) {
+      setProcessing(true);
+      startPolling(selectedFloor.session_id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFloor?.session_id]);
+
+  // Cleanup poll on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  const startPolling = (sessionId) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await getFloorPlanStatus(sessionId);
+        if (res.data.status === 'done' || res.data.status === 'error') {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setProcessing(false);
+          if (res.data.status === 'error') {
+            alert('Processing error: ' + res.data.error);
+          }
+          loadData();
+        }
+      } catch (e) {
+        console.error('Poll error', e);
+      }
+    }, 3000);
+  };
+
+  const handleVideoUpload = async (camId, file) => {
+    if (!file || !selectedFloor) return;
+    setVideoUploads((prev) => ({ ...prev, [camId]: { status: 'uploading', filename: file.name } }));
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await uploadCameraVideo(selectedFloor.session_id, camId, fd);
+      setVideoUploads((prev) => ({ ...prev, [camId]: { status: 'done', filename: file.name } }));
+    } catch (e) {
+      setVideoUploads((prev) => ({ ...prev, [camId]: { status: 'error', filename: file.name } }));
+      alert('Upload failed: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+  const handleRecalibrate = async () => {
+    if (!selectedFloor || processing) return;
+    setProcessing(true);
+    try {
+      await processFloorPlan(selectedFloor.session_id);
+      startPolling(selectedFloor.session_id);
+    } catch (e) {
+      setProcessing(false);
+      alert('Failed to start processing: ' + (e.response?.data?.detail || e.message));
+    }
+  };
 
   const handleSetupComplete = () => loadData();
 
@@ -61,7 +135,8 @@ export default function StoreAnalytics() {
     }
   };
 
-  const doneFloors = floors.filter((f) => f.status === 'done');
+  // Derived: is any camera pipeline running?
+  const isProcessing = processing || selectedFloor?.status === 'processing';
 
   return (
     <div className="space-y-5">
@@ -106,14 +181,14 @@ export default function StoreAnalytics() {
         </div>
       )}
 
-      {/* Floor actions bar (shown when a floor is selected) */}
+      {/* Floor actions bar */}
       {selectedFloor && (
         <div className="flex items-center gap-2">
           <button
             onClick={() => setEditingFloor(selectedFloor)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:border-slate-300"
           >
-            <Edit2 size={12} /> Edit Cameras / Upload Videos
+            <Edit2 size={12} /> Edit Camera Layout
           </button>
           {confirmDelete === selectedFloor.session_id ? (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
@@ -144,7 +219,7 @@ export default function StoreAnalytics() {
         </div>
       )}
 
-      {/* Section tabs (only for done floors) */}
+      {/* Section tabs (zones + sales trends only shown for done floors) */}
       {selectedFloor?.status === 'done' && (
         <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
           {['heatmap', 'zones', 'sales trends'].map((tab) => (
@@ -178,36 +253,30 @@ export default function StoreAnalytics() {
         </div>
       )}
 
-      {/* ── Setup / not yet processed state ── */}
-      {selectedFloor && selectedFloor.status !== 'done' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-          <MapPin size={32} className="text-slate-300 mx-auto mb-3" />
-          <h3 className="font-semibold text-slate-600 mb-1">{selectedFloor.floor_name}</h3>
-          <p className="text-sm text-slate-400 mb-4">
-            {selectedFloor.status === 'processing'
-              ? 'CV pipeline is running — refresh in a moment.'
-              : selectedFloor.status === 'error'
-              ? 'Processing failed. Edit this floor to upload videos and try again.'
-              : `${selectedFloor.num_cameras} camera${selectedFloor.num_cameras !== 1 ? 's' : ''} placed. Upload footage and run the CV pipeline to generate heatmaps.`}
-          </p>
-          <button
-            onClick={() => setEditingFloor(selectedFloor)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700"
-          >
-            <Edit2 size={14} />
-            {selectedFloor.status === 'error' ? 'Edit & Retry' : 'Upload Videos & Process'}
-          </button>
-        </div>
-      )}
-
-      {/* ── Heatmap tab ── */}
-      {activeTab === 'heatmap' && selectedFloor?.status === 'done' && (
+      {/* ── Heatmap tab: shown for any selected floor ── */}
+      {selectedFloor && (activeTab === 'heatmap' || selectedFloor.status !== 'done') && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Left: floor plan / heatmap image */}
           <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
             <h3 className="font-semibold text-slate-800 mb-3">
-              {selectedFloor.floor_name} — Unified Heatmap
+              {selectedFloor.floor_name} —{' '}
+              {selectedFloor.status === 'done' ? 'Unified Heatmap' : 'Floor Plan Preview'}
             </h3>
-            {selectedFloor.heatmap_url ? (
+
+            {isProcessing ? (
+              <div className="h-64 bg-slate-50 rounded-xl flex flex-col items-center justify-center gap-3">
+                <Loader2 size={32} className="animate-spin text-indigo-500" />
+                <p className="text-sm text-slate-700 font-medium">Running CV pipeline...</p>
+                <p className="text-xs text-slate-400">YOLOv8 detection · polling every 3 s</p>
+              </div>
+            ) : selectedFloor.status === 'error' ? (
+              <div className="h-48 bg-red-50 rounded-xl flex flex-col items-center justify-center gap-2 border border-red-100">
+                <AlertTriangle size={24} className="text-red-400" />
+                <p className="text-sm text-red-600 font-medium">Processing failed</p>
+                <p className="text-xs text-red-400">Upload videos and click "Generate Heatmap" to retry</p>
+              </div>
+            ) : selectedFloor.status === 'done' && selectedFloor.heatmap_url ? (
               <>
                 <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-lg" />
                 <div className="flex gap-4 mt-3 text-xs text-slate-500">
@@ -222,43 +291,143 @@ export default function StoreAnalytics() {
                   </span>
                 </div>
               </>
+            ) : selectedFloor.floor_plan_url ? (
+              <>
+                <img
+                  src={selectedFloor.floor_plan_url}
+                  alt="Floor plan"
+                  className="w-full rounded-lg opacity-70"
+                />
+                <p className="text-xs text-slate-400 mt-2 text-center">
+                  Upload CCTV footage and generate a heatmap to see customer traffic
+                </p>
+              </>
             ) : (
               <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
-                Heatmap not available
+                No image available
               </div>
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Clock size={15} /> Camera Zone Summary
+          {/* Right: camera feeds panel */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-3">
+            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+              <Camera size={15} className="text-indigo-500" /> Camera Feeds
             </h3>
-            {selectedFloor.zones?.length > 0 ? selectedFloor.zones.map((zone, i) => (
-              <div key={i} className="mb-4">
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-700 font-medium">{zone.name}</span>
-                  <span className={
-                    zone.level.includes('High') ? 'text-red-500' :
-                    zone.level.includes('Moderate') ? 'text-amber-500' : 'text-blue-500'
-                  }>{zone.density_score}</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full">
-                  <div
-                    className={`h-1.5 rounded-full ${
-                      zone.level.includes('High') ? 'bg-red-400' :
-                      zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
-                    }`}
-                    style={{ width: `${zone.density_score * 100}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-400 mt-1">{zone.description}</p>
+
+            {!selectedFloor.cameras?.length ? (
+              <div className="flex-1 flex items-center justify-center py-8">
+                <p className="text-sm text-slate-400 text-center leading-relaxed">
+                  No cameras placed yet.<br />
+                  Click <strong>Edit Camera Layout</strong> to add cameras.
+                </p>
               </div>
-            )) : (
-              <p className="text-sm text-slate-400">No zone data</p>
+            ) : (
+              <>
+                {/* Camera list */}
+                <div className="flex-1 space-y-2 overflow-y-auto">
+                  {selectedFloor.cameras.map((cam, i) => {
+                    const upload      = videoUploads[cam.id];
+                    const isUploading = upload?.status === 'uploading';
+                    const uploadDone  = upload?.status === 'done';
+                    const uploadError = upload?.status === 'error';
+                    const hasExisting = cam.has_video && !upload;
+
+                    return (
+                      <div key={cam.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg">
+                        <div
+                          style={{ background: CAM_COLORS[i % CAM_COLORS.length] }}
+                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                        >
+                          <Camera size={11} className="text-white" />
+                        </div>
+                        <span className="text-xs font-medium text-slate-700 flex-1 min-w-0 truncate">
+                          {cam.name}
+                        </span>
+
+                        {isUploading ? (
+                          <span className="flex items-center gap-1 text-xs text-indigo-500 shrink-0">
+                            <Loader2 size={11} className="animate-spin" /> Uploading
+                          </span>
+                        ) : uploadDone ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <CheckCircle size={11} className="text-green-500" />
+                            <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
+                              Replace
+                              <input type="file" accept="video/*" className="hidden"
+                                onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
+                            </label>
+                          </div>
+                        ) : hasExisting ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <CheckCircle size={11} className="text-green-500" />
+                            <label className="text-xs text-slate-400 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
+                              Replace
+                              <input type="file" accept="video/*" className="hidden"
+                                onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
+                            </label>
+                          </div>
+                        ) : uploadError ? (
+                          <label className="flex items-center gap-1 text-xs text-red-500 cursor-pointer hover:text-red-700 shrink-0">
+                            <Upload size={11} /> Retry
+                            <input type="file" accept="video/*" className="hidden"
+                              onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
+                          </label>
+                        ) : (
+                          <label className="flex items-center gap-1 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 shrink-0">
+                            <Upload size={11} /> Upload
+                            <input type="file" accept="video/*" className="hidden"
+                              onChange={(e) => handleVideoUpload(cam.id, e.target.files[0])} />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Generate / recalibrate */}
+                <div className="pt-3 border-t border-slate-100">
+                  {(() => {
+                    const hasAnyVideo = selectedFloor.cameras.some(
+                      (cam) => cam.has_video || videoUploads[cam.id]?.status === 'done'
+                    );
+
+                    if (isProcessing) {
+                      return (
+                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-indigo-500">
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Pipeline running...</span>
+                        </div>
+                      );
+                    }
+                    if (hasAnyVideo) {
+                      return (
+                        <button
+                          onClick={handleRecalibrate}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                        >
+                          <Play size={14} />
+                          {selectedFloor.status === 'done' ? 'Recalibrate Heatmap' : 'Generate Heatmap'}
+                        </button>
+                      );
+                    }
+                    return (
+                      <p className="text-xs text-slate-400 text-center py-2 leading-relaxed">
+                        Upload at least one camera feed<br />to generate a heatmap.
+                      </p>
+                    );
+                  })()}
+                </div>
+
+                {/* Total detected (done floors) */}
+                {selectedFloor.status === 'done' && (
+                  <div className="text-xs text-slate-500 border-t border-slate-100 pt-2">
+                    Total people detected:{' '}
+                    <strong className="text-slate-700">{selectedFloor.total_people}</strong>
+                  </div>
+                )}
+              </>
             )}
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-              Total people detected: <strong className="text-slate-700">{selectedFloor.total_people}</strong>
-            </div>
           </div>
         </div>
       )}
@@ -287,6 +456,38 @@ export default function StoreAnalytics() {
           )) : (
             <div className="col-span-3 text-center py-12 text-slate-400">No zone data available</div>
           )}
+        </div>
+      )}
+
+      {/* ── Zones summary within heatmap tab ── */}
+      {activeTab === 'heatmap' && selectedFloor?.status === 'done' && selectedFloor.zones?.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <Clock size={15} /> Camera Zone Summary
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {selectedFloor.zones.map((zone, i) => (
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-700 font-medium">{zone.name}</span>
+                  <span className={
+                    zone.level.includes('High') ? 'text-red-500' :
+                    zone.level.includes('Moderate') ? 'text-amber-500' : 'text-blue-500'
+                  }>{zone.density_score}</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      zone.level.includes('High') ? 'bg-red-400' :
+                      zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
+                    }`}
+                    style={{ width: `${zone.density_score * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">{zone.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

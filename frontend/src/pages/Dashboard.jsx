@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown } from 'lucide-react';
-import { getSalesSummary, getInventoryStatus, listFloorPlans } from '../api';
+import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw } from 'lucide-react';
+import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus } from '../api';
 
 export default function Dashboard() {
   const [sales, setSales] = useState(null);
   const [inventory, setInventory] = useState(null);
   const [floors, setFloors] = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [recalibrating, setRecalibrating] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -21,13 +22,43 @@ export default function Dashboard() {
       .then(([s, i, f]) => {
         setSales(s?.data || null);
         setInventory(i?.data || null);
-        const doneFloors = (f?.data?.sessions || []).filter((fl) => fl.status === 'done');
-        setFloors(doneFloors);
-        if (doneFloors.length > 0) setSelectedFloor(doneFloors[0]);
+        const allFloors = f?.data?.sessions || [];
+        setFloors(allFloors);
+        if (allFloors.length > 0) setSelectedFloor(allFloors[0]);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const recalibrate = async () => {
+    if (!selectedFloor || recalibrating) return;
+    setRecalibrating(true);
+    try {
+      await processFloorPlan(selectedFloor.session_id);
+      const poll = setInterval(async () => {
+        try {
+          const res = await getFloorPlanStatus(selectedFloor.session_id);
+          if (res.data.status === 'done' || res.data.status === 'error') {
+            clearInterval(poll);
+            setRecalibrating(false);
+            if (res.data.status === 'done') {
+              // Refresh floor data to get updated heatmap
+              listFloorPlans().then((f) => {
+                const all = f?.data?.sessions || [];
+                setFloors(all);
+                setSelectedFloor(all.find((fl) => fl.session_id === selectedFloor.session_id) || all[0] || null);
+              });
+            }
+          }
+        } catch (e) {
+          clearInterval(poll);
+          setRecalibrating(false);
+        }
+      }, 3000);
+    } catch (e) {
+      setRecalibrating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -63,7 +94,7 @@ export default function Dashboard() {
       icon: TrendingUp, color: 'bg-blue-50 text-blue-600',
     },
     {
-      label: 'Floors Configured',
+      label: 'Floor Plans',
       value: String(floors.length),
       icon: MapPin, color: 'bg-purple-50 text-purple-600',
     },
@@ -121,6 +152,17 @@ export default function Dashboard() {
                   {floors[0].floor_name}
                 </span>
               )}
+              {selectedFloor?.status === 'done' && (
+                <button
+                  onClick={recalibrate}
+                  disabled={recalibrating}
+                  title="Re-run CV pipeline with current footage"
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw size={11} className={recalibrating ? 'animate-spin' : ''} />
+                  {recalibrating ? 'Running…' : 'Recalibrate'}
+                </button>
+              )}
               <Link to="/analytics" className="text-indigo-600 text-xs flex items-center gap-1 hover:underline">
                 Details <ArrowRight size={12} />
               </Link>
@@ -130,14 +172,42 @@ export default function Dashboard() {
           {floors.length === 0 ? (
             <div className="h-64 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
               <MapPin size={28} />
-              <p className="text-sm font-medium text-slate-500">No heatmap data yet</p>
+              <p className="text-sm font-medium text-slate-500">No floor plans yet</p>
               <p className="text-xs text-center">Go to <Link to="/analytics" className="text-indigo-500 hover:underline">Store Analytics</Link> to upload your floor plan and configure cameras</p>
+            </div>
+          ) : recalibrating || selectedFloor?.status === 'processing' ? (
+            <div className="h-64 bg-slate-50 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400">
+              <div className="animate-spin h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
+              <p className="text-sm">Running CV pipeline…</p>
             </div>
           ) : selectedFloor?.heatmap_url ? (
             <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-lg" />
+          ) : selectedFloor?.floor_plan_url ? (
+            <div className="relative">
+              <img src={selectedFloor.floor_plan_url} alt="Floor plan" className="w-full rounded-lg opacity-70" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                {selectedFloor.cameras?.some((c) => c.has_video) ? (
+                  <button
+                    onClick={recalibrate}
+                    disabled={recalibrating}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium shadow-lg hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    <RefreshCw size={13} className={recalibrating ? 'animate-spin' : ''} />
+                    {recalibrating ? 'Running…' : 'Generate Heatmap'}
+                  </button>
+                ) : (
+                  <Link
+                    to="/analytics"
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium shadow-lg hover:bg-indigo-700"
+                  >
+                    Upload footage &amp; generate heatmap
+                  </Link>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
-              Heatmap processing...
+              No image available
             </div>
           )}
         </div>

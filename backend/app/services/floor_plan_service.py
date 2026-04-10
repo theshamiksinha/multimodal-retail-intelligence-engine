@@ -2,11 +2,65 @@ import cv2
 import numpy as np
 import uuid
 import os
+import json
 from scipy.ndimage import gaussian_filter
 from app.services.video_service import get_model
 
-# In-memory session store
+# ── Persistent session store ──────────────────────────────────────────────────
+# Kept in memory during runtime; saved to disk after every mutation so that
+# sessions survive server restarts.  Numpy heatmap arrays are excluded from
+# the file (they're only needed during live processing).
+
+SESSIONS_FILE = "data/floor_plan_sessions.json"
+
 floor_plan_sessions: dict = {}
+
+
+def _save_sessions():
+    """Write the current sessions to disk, skipping non-serialisable numpy arrays."""
+    os.makedirs("data", exist_ok=True)
+    payload = {}
+    for sid, s in floor_plan_sessions.items():
+        payload[sid] = {k: v for k, v in s.items() if k != "cameras"}
+        payload[sid]["cameras"] = [
+            {k: v for k, v in cam.items() if k != "heatmap"}
+            for cam in s.get("cameras", [])
+        ]
+    try:
+        with open(SESSIONS_FILE, "w") as f:
+            json.dump(payload, f, indent=2)
+    except OSError as e:
+        print(f"[floor_plan] Could not save sessions: {e}")
+
+
+def _load_sessions():
+    """Load sessions from disk on startup. Files on disk are still present;
+    we just restore the metadata so the app knows about them."""
+    if not os.path.exists(SESSIONS_FILE):
+        return
+    try:
+        with open(SESSIONS_FILE) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"[floor_plan] Could not load sessions file: {e}")
+        return
+
+    for sid, s in data.items():
+        # If the server was killed mid-processing, mark as error so the user
+        # can see the floor and choose to reprocess.
+        if s.get("status") == "processing":
+            s["status"] = "error"
+            s["error"] = "Server was restarted during processing — please reprocess."
+        # Restore the heatmap slot (populated only during live processing)
+        for cam in s.get("cameras", []):
+            cam.setdefault("heatmap", None)
+        floor_plan_sessions[sid] = s
+
+    print(f"[floor_plan] Restored {len(data)} session(s) from disk.")
+
+
+# Restore sessions immediately on module import
+_load_sessions()
 
 
 def create_session(floor_plan_path: str, floor_name: str = "Ground Floor") -> str:
@@ -14,11 +68,12 @@ def create_session(floor_plan_path: str, floor_name: str = "Ground Floor") -> st
     floor_plan_sessions[session_id] = {
         "floor_plan_path": floor_plan_path,
         "floor_name": floor_name,
-        "cameras": [],   # {id, name, x_pct, y_pct, video_path, heatmap, people_count}
+        "cameras": [],
         "unified_heatmap_path": None,
-        "status": "setup",   # setup | processing | done | error
+        "status": "setup",
         "error": None,
     }
+    _save_sessions()
     return session_id
 
 
@@ -43,6 +98,7 @@ def save_cameras(session_id: str, cameras: list[dict]):
         })
         updated.append(merged)
     session["cameras"] = updated
+    _save_sessions()
 
 
 def attach_video(session_id: str, camera_id: str, video_path: str):
@@ -51,6 +107,7 @@ def attach_video(session_id: str, camera_id: str, video_path: str):
     for cam in session["cameras"]:
         if cam["id"] == camera_id:
             cam["video_path"] = video_path
+            _save_sessions()
             return
     raise ValueError(f"Camera {camera_id} not found")
 
@@ -159,49 +216,36 @@ def process_session(session_id: str) -> dict:
         heatmap_u8  = (unified * 255).astype(np.uint8)
         heatmap_col = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
 
-        # Blend coloured heatmap onto floor plan only within FOV sectors
-        overlay = floor_plan_img.copy()
-        blended = cv2.addWeighted(floor_plan_img, 0.4, heatmap_col, 0.6, 0)
-        overlay[covered] = blended[covered]
+        # ── Soft alpha mask: fades to 0 at sector boundaries ─────────────────
+        # Both the arc edge (range) and the angular edges (spread) fade
+        # independently; the combined fade is their product.
+        FADE_START = 0.60   # start fading at 60% of range/spread distance
+        alpha_map  = np.zeros((fp_h, fp_w), dtype=np.float32)
+        for i in range(len(cameras_with_video)):
+            # Range fade
+            range_ratio  = np.clip(dist[i] / np.maximum(fov_radii_px[i], 1.0), 0.0, 1.0)
+            range_alpha  = 1.0 - np.clip(
+                (range_ratio  - FADE_START) / (1.0 - FADE_START), 0.0, 1.0)
+            # Spread (angular) fade
+            spread_ratio = np.clip(
+                np.abs(angle_diff[i]) / np.maximum(fov_half_spreads[i], 1e-6), 0.0, 1.0)
+            spread_alpha = 1.0 - np.clip(
+                (spread_ratio - FADE_START) / (1.0 - FADE_START), 0.0, 1.0)
+            # Per-camera alpha (zero outside this camera's FOV)
+            cam_alpha = range_alpha * spread_alpha * in_fov[i].astype(np.float32)
+            # Take the strongest coverage across all cameras
+            alpha_map = np.maximum(alpha_map, cam_alpha)
 
-        # Draw FOV sector outlines + camera markers
-        for cam in cameras_with_video:
-            cx_i  = int(cam["x_pct"] / 100.0 * fp_w)
-            cy_i  = int(cam["y_pct"] / 100.0 * fp_h)
-            dir_d = cam.get("fov_direction", 90.0)          # degrees
-            sprd  = cam.get("fov_spread",    60.0)          # degrees
-            rad   = max(8, int(cam.get("fov_range", 15.0) / 100.0 * fp_w))
+        # Cap max opacity so the floor plan always shows through
+        MAX_OPACITY = 0.55
+        alpha_map   = alpha_map * MAX_OPACITY          # now in [0, MAX_OPACITY]
 
-            # Sector outline (polygon approximation of the arc)
-            n_pts  = max(20, int(sprd))
-            angles = np.linspace(
-                (dir_d - sprd / 2) * (np.pi / 180.0),
-                (dir_d + sprd / 2) * (np.pi / 180.0),
-                n_pts,
-            )
-            arc_pts = [
-                (int(cx_i + rad * np.cos(a)), int(cy_i + rad * np.sin(a)))
-                for a in angles
-            ]
-            sector_pts = np.array([(cx_i, cy_i)] + arc_pts, dtype=np.int32)
-            cv2.polylines(overlay, [sector_pts], isClosed=True,
-                          color=(255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
-
-            # Camera dot
-            cv2.circle(overlay, (cx_i, cy_i), 10, (255, 255, 255), -1)
-            cv2.circle(overlay, (cx_i, cy_i), 12, (0, 0, 0), 2)
-            cv2.line(overlay, (cx_i - 5, cy_i), (cx_i + 5, cy_i), (0, 0, 0), 2)
-            cv2.line(overlay, (cx_i, cy_i - 5), (cx_i, cy_i + 5), (0, 0, 0), 2)
-
-            # Label
-            label = cam["name"][:16]
-            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
-            cv2.rectangle(overlay,
-                          (cx_i + 14, cy_i - th - 4), (cx_i + 16 + tw, cy_i + 2),
-                          (0, 0, 0), -1)
-            cv2.putText(overlay, label, (cx_i + 15, cy_i),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1,
-                        cv2.LINE_AA)
+        # Per-pixel alpha blend — no hard cutoff, no camera markers
+        alpha_3d = alpha_map[:, :, np.newaxis]         # (fp_h, fp_w, 1)
+        overlay  = (
+            floor_plan_img.astype(np.float32) * (1.0 - alpha_3d) +
+            heatmap_col.astype(np.float32)   * alpha_3d
+        ).clip(0, 255).astype(np.uint8)
 
         os.makedirs("static/heatmaps", exist_ok=True)
         out_path = f"static/heatmaps/fp_{session_id}.png"
@@ -209,6 +253,7 @@ def process_session(session_id: str) -> dict:
 
         session["unified_heatmap_path"] = out_path
         session["status"] = "done"
+        _save_sessions()
 
         # Zone summary (computed only within each camera's FOV pixels)
         zones = _compute_zone_summary(unified, cameras_with_video, fp_w, fp_h,
@@ -226,6 +271,7 @@ def process_session(session_id: str) -> dict:
     except Exception as exc:
         session["status"] = "error"
         session["error"]  = str(exc)
+        _save_sessions()
         raise
 
 
@@ -413,3 +459,4 @@ def delete_session(session_id: str):
         _rm(cam.get("video_path"))
 
     del floor_plan_sessions[session_id]
+    _save_sessions()
