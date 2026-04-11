@@ -1,3 +1,5 @@
+import os
+import requests as http_requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.models.schemas import MarketingRequest
@@ -48,3 +50,35 @@ async def generate_campaign(goal: str = "promote top products"):
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, f"Campaign generation failed: {str(e)}")
+
+
+class BufferPostRequest(BaseModel):
+    channel_id: str
+    caption: str
+    hashtags: list[str] = []
+    image_data_url: str | None = None
+
+
+@router.post("/post-to-buffer")
+async def post_to_buffer(request: BufferPostRequest):
+    """Post generated marketing content to a Buffer profile."""
+    access_token = os.getenv("BUFFER_ACCESS_TOKEN")
+    if not access_token:
+        raise HTTPException(400, "BUFFER_ACCESS_TOKEN not set in .env")
+
+    text = request.caption + "\n\n" + " ".join(request.hashtags)
+
+    resp = http_requests.post(
+        "https://api.bufferapp.com/1/updates/create.json",
+        data={
+            "access_token": access_token,
+            "profile_ids[]": request.channel_id,
+            "text": text,
+        },
+        timeout=15,
+    )
+
+    if not resp.ok:
+        raise HTTPException(502, f"Buffer API error: {resp.text}")
+
+    return {"success": True}

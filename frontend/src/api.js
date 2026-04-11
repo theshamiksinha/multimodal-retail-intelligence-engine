@@ -18,6 +18,7 @@ export const generateSampleData = () => api.post('/sales/generate-sample');
 // Marketing
 export const generateMarketing = (data) => api.post('/marketing/generate', data);
 export const generateCampaign = (goal) => api.post(`/marketing/campaign?goal=${encodeURIComponent(goal)}`);
+export const postToBuffer = (data) => api.post('/marketing/post-to-buffer', data);
 
 // AI Advisor
 export const chatWithAdvisor = (message, sessionId = 'default') =>

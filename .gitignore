@@ -60,6 +60,7 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+Project_Idea.pdf
 
 # Package lock files (uncomment only if needed)
 # package-lock.json
