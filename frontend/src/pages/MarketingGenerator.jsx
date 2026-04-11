@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Sparkles, Image, Copy, Check, Loader2 } from 'lucide-react';
-import { generateMarketing } from '../api';
+import { Sparkles, Image, Copy, Check, Loader2, Send } from 'lucide-react';
+import { generateMarketing, postToBuffer } from '../api';
 
 export default function MarketingGenerator() {
   const [form, setForm] = useState({
@@ -13,19 +13,54 @@ export default function MarketingGenerator() {
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState(false);
 
   const handleGenerate = async () => {
     if (!form.product_name.trim()) return;
     setLoading(true);
     setResult(null);
+    setPosted(false);
     try {
-      const res = await generateMarketing(form);
+      const res = await generateMarketing({ ...form, generate_image: false });
       setResult(res.data);
+      setLoading(false);
+      if (form.generate_image) {
+        setImageLoading(true);
+        try {
+          const imgRes = await generateMarketing({ ...form, generate_image: true });
+          setResult((prev) => ({ ...prev, image_url: imgRes.data.image_url }));
+        } catch (err) {
+          console.error('Image generation failed:', err);
+        } finally {
+          setImageLoading(false);
+        }
+      }
     } catch (err) {
       alert('Generation failed: ' + (err.response?.data?.detail || err.message));
+
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const handlePostToBuffer = async () => {
+    if (!result) return;
+    setPosting(true);
+    try {
+      await postToBuffer({
+        channel_id: import.meta.env.VITE_BUFFER_CHANNEL_ID,
+        caption: result.caption,
+        hashtags: result.hashtags,
+        image_data_url: result.image_url || null,
+      });
+      setPosted(true);
+    } catch (err) {
+      alert('Failed to post to Buffer: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setPosting(false);
+    }
   };
 
   const copyCaption = () => {
@@ -114,14 +149,14 @@ export default function MarketingGenerator() {
                   onChange={(e) => setForm({ ...form, generate_image: e.target.checked })}
                   className="rounded border-slate-300"
                 />
-                Generate Image (DALL-E)
+                Generate Image (HuggingFace)
               </label>
             </div>
           </div>
 
           <button
             onClick={handleGenerate}
-            disabled={loading || !form.product_name.trim()}
+            disabled={loading || imageLoading || !form.product_name.trim()}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
@@ -144,12 +179,19 @@ export default function MarketingGenerator() {
                 </button>
               </div>
 
-              {result.image_url && (
-                <img
-                  src={result.image_url}
-                  alt="Generated marketing image"
-                  className="w-full rounded-lg border border-slate-100"
-                />
+              {form.generate_image && (
+                <div className="w-full aspect-square rounded-lg border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
+                  {imageLoading ? (
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <Loader2 size={28} className="animate-spin" />
+                      <p className="text-xs">Generating image…</p>
+                    </div>
+                  ) : result.image_url ? (
+                    <img src={result.image_url} alt="Generated marketing image" className="w-full h-full object-cover" />
+                  ) : (
+                    <p className="text-xs text-slate-400">Image unavailable</p>
+                  )}
+                </div>
               )}
 
               <div className="bg-slate-50 rounded-lg p-4">
@@ -167,6 +209,22 @@ export default function MarketingGenerator() {
               <div className="text-xs text-slate-400">
                 Platform: {result.platform} | Campaign: {form.campaign_type}
               </div>
+
+              {/* Post to Buffer button */}
+              <button
+                onClick={handlePostToBuffer}
+                disabled={posting || imageLoading || posted}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {posting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : posted ? (
+                  <Check size={16} />
+                ) : (
+                  <Send size={16} />
+                )}
+                {posting ? 'Posting to Buffer…' : posted ? 'Posted to Buffer!' : 'Post to Instagram via Buffer'}
+              </button>
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">

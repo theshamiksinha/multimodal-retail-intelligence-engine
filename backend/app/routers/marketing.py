@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-
+from pydantic import BaseModel
 from app.models.schemas import MarketingRequest
 from app.services import marketing_service, sales_service
 

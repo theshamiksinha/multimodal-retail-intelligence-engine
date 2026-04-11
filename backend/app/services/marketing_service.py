@@ -1,5 +1,8 @@
 import os
-from openai import OpenAI
+import json
+import requests
+import base64
+from mistralai import Mistral
 
 client = None
 
@@ -7,10 +10,10 @@ client = None
 def get_client():
     global client
     if client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("MISTRAL_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY not set. Please set it in .env file.")
-        client = OpenAI(api_key=api_key)
+            raise ValueError("MISTRAL_API_KEY not set. Please set it in .env file.")
+        client = Mistral(api_key=api_key)
     return client
 
 
@@ -21,7 +24,7 @@ def generate_marketing_caption(
     tone: str = "engaging",
     platform: str = "instagram",
 ) -> dict:
-    """Generate marketing caption and hashtags using GPT."""
+    """Generate marketing caption and hashtags using Mistral."""
     c = get_client()
 
     platform_guidelines = {
@@ -53,14 +56,13 @@ Respond in JSON format:
 {{"caption": "your caption here", "hashtags": ["#tag1", "#tag2", ...]}}
 """
 
-    response = c.chat.completions.create(
-        model="gpt-4o-mini",
+    response = c.chat.complete(
+        model="mistral-small-latest",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
         temperature=0.8,
     )
 
-    import json
     result = json.loads(response.choices[0].message.content)
     return {
         "caption": result.get("caption", ""),
@@ -73,8 +75,11 @@ def generate_marketing_image(
     product_name: str,
     campaign_type: str = "social_media",
 ) -> str | None:
-    """Generate a marketing image using DALL-E."""
-    c = get_client()
+    """Generate a marketing image using Hugging Face Inference API.
+    Returns a base64 data URL ready to use as an <img src=".." />."""
+    hf_token = os.getenv("HUGGINGFACE_API_TOKEN")
+    if not hf_token:
+        raise ValueError("HUGGINGFACE_API_TOKEN not set. Please set it in .env file.")
 
     style_hints = {
         "social_media": "vibrant, eye-catching, modern social media ad style",
@@ -82,22 +87,31 @@ def generate_marketing_image(
         "seasonal": "seasonal themed, warm and inviting colors",
     }
 
-    prompt = f"""Create a professional retail marketing image for: {product_name}.
-Style: {style_hints.get(campaign_type, "professional product advertisement")}.
-The image should be clean, professional, and suitable for a small retail store's social media.
-No text in the image."""
+    image_prompt = (
+        f"Professional retail marketing photo for: {product_name}. "
+        f"Style: {style_hints.get(campaign_type, 'professional product advertisement')}. "
+        "Clean background, studio lighting, commercial product photography, "
+        "high quality, no text, no watermarks."
+    )
 
-    try:
-        response = c.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1,
-        )
-        return response.data[0].url
-    except Exception as e:
-        print(f"Image generation failed: {e}")
+    api_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
+    headers = {"Authorization": f"Bearer {hf_token}"}
+    payload = {
+        "inputs": image_prompt,
+        "parameters": {
+            "num_inference_steps": 4,
+            "width": 1024,
+            "height": 1024,
+        },
+    }
+
+    response = requests.post(api_url, headers=headers, json=payload, timeout=60)
+
+    if response.status_code == 200:
+        b64 = base64.b64encode(response.content).decode("utf-8")
+        return f"data:image/png;base64,{b64}"
+    else:
+        print(f"Image generation failed: {response.status_code} — {response.text}")
         return None
 
 
@@ -136,12 +150,12 @@ Respond in JSON format:
 }}
 """
 
-    response = c.chat.completions.create(
-        model="gpt-4o-mini",
+    response = c.chat.complete(
+        model="mistral-small-latest",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
         temperature=0.8,
     )
 
-    import json
+
     return json.loads(response.choices[0].message.content)
