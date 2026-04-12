@@ -3,14 +3,18 @@ import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus } from '../api';
+import { useTheme } from '../context/ThemeContext';
+
+const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
 export default function Dashboard() {
-  const [sales, setSales] = useState(null);
-  const [inventory, setInventory] = useState(null);
-  const [floors, setFloors] = useState([]);
+  const { dark } = useTheme();
+  const [sales, setSales]           = useState(null);
+  const [inventory, setInventory]   = useState(null);
+  const [floors, setFloors]         = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
   const [recalibrating, setRecalibrating] = useState(false);
 
   useEffect(() => {
@@ -22,11 +26,11 @@ export default function Dashboard() {
       .then(([s, i, f]) => {
         setSales(s?.data || null);
         setInventory(i?.data || null);
-        const allFloors = f?.data?.sessions || [];
-        setFloors(allFloors);
-        if (allFloors.length > 0) setSelectedFloor(allFloors[0]);
+        const all = f?.data?.sessions || [];
+        setFloors(all);
+        if (all.length > 0) setSelectedFloor(all[0]);
       })
-      .catch((e) => setError(e.message))
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -42,30 +46,29 @@ export default function Dashboard() {
             clearInterval(poll);
             setRecalibrating(false);
             if (res.data.status === 'done') {
-              // Refresh floor data to get updated heatmap
-              listFloorPlans().then((f) => {
+              listFloorPlans().then(f => {
                 const all = f?.data?.sessions || [];
                 setFloors(all);
-                setSelectedFloor(all.find((fl) => fl.session_id === selectedFloor.session_id) || all[0] || null);
+                setSelectedFloor(all.find(fl => fl.session_id === selectedFloor.session_id) || all[0] || null);
               });
             }
           }
-        } catch (e) {
-          clearInterval(poll);
-          setRecalibrating(false);
-        }
+        } catch { clearInterval(poll); setRecalibrating(false); }
       }, 3000);
-    } catch (e) {
-      setRecalibrating(false);
-    }
+    } catch { setRecalibrating(false); }
   };
+
+  const axisColor = dark ? '#6b7280' : '#94a3b8';
+  const tooltipStyle = dark
+    ? { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', borderRadius: 10 }
+    : { backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-500">Loading dashboard...</p>
+      <div className="flex items-center justify-center h-80">
+        <div className="text-center space-y-3">
+          <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto" />
+          <p className="text-sm text-slate-400 dark:text-gray-500">Loading dashboard…</p>
         </div>
       </div>
     );
@@ -73,10 +76,10 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center text-red-500">
-          <p>Error: {error}</p>
-          <p className="text-sm text-slate-400 mt-1">Make sure the backend is running on port 8000</p>
+      <div className="flex items-center justify-center h-80">
+        <div className="text-center space-y-1">
+          <p className="text-red-500 font-medium">{error}</p>
+          <p className="text-sm text-slate-400 dark:text-gray-500">Make sure the backend is running on port 8000</p>
         </div>
       </div>
     );
@@ -84,233 +87,225 @@ export default function Dashboard() {
 
   const stats = [
     {
-      label: 'Total Revenue (90d)',
-      value: sales ? '$' + Number(sales.total_revenue).toLocaleString() : '--',
-      icon: DollarSign, color: 'bg-green-50 text-green-600',
+      label: 'Total Revenue',
+      sub: '90-day window',
+      value: sales ? '$' + Number(sales.total_revenue).toLocaleString() : '—',
+      icon: DollarSign,
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-50 dark:bg-green-950/40',
     },
     {
       label: 'Items Sold',
-      value: sales ? Number(sales.total_items_sold).toLocaleString() : '--',
-      icon: TrendingUp, color: 'bg-blue-50 text-blue-600',
+      sub: '90-day window',
+      value: sales ? Number(sales.total_items_sold).toLocaleString() : '—',
+      icon: TrendingUp,
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-50 dark:bg-blue-950/40',
     },
     {
       label: 'Floor Plans',
+      sub: 'configured',
       value: String(floors.length),
-      icon: MapPin, color: 'bg-purple-50 text-purple-600',
+      icon: MapPin,
+      color: 'text-violet-600 dark:text-violet-400',
+      bg: 'bg-violet-50 dark:bg-violet-950/40',
     },
     {
       label: 'Expiring Soon',
-      value: inventory?.expiring_soon ? String(inventory.expiring_soon.length) : '--',
-      icon: AlertTriangle, color: 'bg-amber-50 text-amber-600',
+      sub: 'within 7 days',
+      value: inventory?.expiring_soon ? String(inventory.expiring_soon.length) : '—',
+      icon: AlertTriangle,
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-950/40',
     },
   ];
 
-  const trendData = sales?.trends ? sales.trends.slice(-30) : [];
+  const trendData   = sales?.trends?.slice(-30) || [];
   const topProducts = sales?.top_products || [];
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => {
-          const IconComp = stat.icon;
+    <div className="space-y-5">
+
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((s, i) => {
+          const Icon = s.icon;
           return (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-slate-500">{stat.label}</span>
-                <div className={'p-2 rounded-lg ' + stat.color}><IconComp size={16} /></div>
+            <div key={i} className={`${CARD} p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">{s.label}</span>
+                <div className={`p-2 rounded-xl ${s.bg}`}>
+                  <Icon size={15} className={s.color} />
+                </div>
               </div>
-              <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-gray-100">{s.value}</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">{s.sub}</p>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Heatmap panel */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+      {/* ── Heatmap + Revenue trend ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* Heatmap */}
+        <div className={`${CARD} p-5`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800">Store Heatmap</h2>
+            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">Store Heatmap</h2>
             <div className="flex items-center gap-2">
-              {/* Floor selector dropdown */}
               {floors.length > 1 && (
                 <div className="relative">
                   <select
                     value={selectedFloor?.session_id || ''}
-                    onChange={(e) => setSelectedFloor(floors.find((f) => f.session_id === e.target.value))}
-                    className="pl-3 pr-8 py-1.5 border border-slate-200 rounded-lg text-xs appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    onChange={e => setSelectedFloor(floors.find(f => f.session_id === e.target.value))}
+                    className="pl-3 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-gray-700
+                      bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300
+                      focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
                   >
-                    {floors.map((f) => (
-                      <option key={f.session_id} value={f.session_id}>{f.floor_name}</option>
-                    ))}
+                    {floors.map(f => <option key={f.session_id} value={f.session_id}>{f.floor_name}</option>)}
                   </select>
-                  <ChevronDown size={12} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
+                  <ChevronDown size={11} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
                 </div>
-              )}
-              {floors.length === 1 && (
-                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                  {floors[0].floor_name}
-                </span>
               )}
               {selectedFloor?.status === 'done' && (
                 <button
                   onClick={recalibrate}
                   disabled={recalibrating}
-                  title="Re-run CV pipeline with current footage"
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-indigo-600 px-2 py-1.5 border border-slate-200 dark:border-gray-700 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 >
                   <RefreshCw size={11} className={recalibrating ? 'animate-spin' : ''} />
                   {recalibrating ? 'Running…' : 'Recalibrate'}
                 </button>
               )}
-              <Link to="/analytics" className="text-indigo-600 text-xs flex items-center gap-1 hover:underline">
-                Details <ArrowRight size={12} />
+              <Link to="/analytics" className="flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+                Details <ArrowRight size={11} />
               </Link>
             </div>
           </div>
 
           {floors.length === 0 ? (
-            <div className="h-64 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <MapPin size={28} />
-              <p className="text-sm font-medium text-slate-500">No floor plans yet</p>
-              <p className="text-xs text-center">Go to <Link to="/analytics" className="text-indigo-500 hover:underline">Store Analytics</Link> to upload your floor plan and configure cameras</p>
+            <div className="h-56 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-700 flex flex-col items-center justify-center gap-2">
+              <MapPin size={24} className="text-slate-300 dark:text-gray-600" />
+              <p className="text-sm font-medium text-slate-500 dark:text-gray-400">No floor plans yet</p>
+              <Link to="/analytics" className="text-xs text-indigo-500 hover:underline">Set one up in Store Analytics →</Link>
             </div>
           ) : recalibrating || selectedFloor?.status === 'processing' ? (
-            <div className="h-64 bg-slate-50 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400">
-              <div className="animate-spin h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-              <p className="text-sm">Running CV pipeline…</p>
+            <div className="h-56 bg-slate-50 dark:bg-gray-800 rounded-xl flex flex-col items-center justify-center gap-2">
+              <div className="animate-spin h-6 w-6 border-[3px] border-indigo-500 border-t-transparent rounded-full" />
+              <p className="text-sm text-slate-500 dark:text-gray-400">Running CV pipeline…</p>
             </div>
           ) : selectedFloor?.heatmap_url ? (
-            <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-lg" />
+            <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-xl" />
           ) : selectedFloor?.floor_plan_url ? (
             <div className="relative">
-              <img src={selectedFloor.floor_plan_url} alt="Floor plan" className="w-full rounded-lg opacity-70" />
+              <img src={selectedFloor.floor_plan_url} alt="Floor plan" className="w-full rounded-xl opacity-60" />
               <div className="absolute inset-0 flex items-center justify-center">
-                {selectedFloor.cameras?.some((c) => c.has_video) ? (
+                {selectedFloor.cameras?.some(c => c.has_video) ? (
                   <button
                     onClick={recalibrate}
                     disabled={recalibrating}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium shadow-lg hover:bg-indigo-700 disabled:opacity-60"
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium shadow-lg hover:bg-indigo-700 disabled:opacity-60"
                   >
                     <RefreshCw size={13} className={recalibrating ? 'animate-spin' : ''} />
-                    {recalibrating ? 'Running…' : 'Generate Heatmap'}
+                    Generate Heatmap
                   </button>
                 ) : (
-                  <Link
-                    to="/analytics"
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-medium shadow-lg hover:bg-indigo-700"
-                  >
-                    Upload footage &amp; generate heatmap
+                  <Link to="/analytics" className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium shadow-lg hover:bg-indigo-700">
+                    Upload footage & generate heatmap
                   </Link>
                 )}
               </div>
             </div>
           ) : (
-            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
+            <div className="h-56 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
               No image available
             </div>
           )}
         </div>
 
         {/* Revenue trend */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className={`${CARD} p-5`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800">Revenue Trend</h2>
-            <Link to="/analytics" className="text-indigo-600 text-xs flex items-center gap-1 hover:underline">
-              Details <ArrowRight size={12} />
+            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">Revenue Trend <span className="text-slate-400 dark:text-gray-500 font-normal">(last 30 days)</span></h2>
+            <Link to="/analytics" className="flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+              Details <ArrowRight size={11} />
             </Link>
           </div>
           {trendData.length > 0 ? (
-            <div style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData}>
-                  <defs>
-                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#6366f1" fill="url(#revGrad)" />
-                  <Area type="monotone" dataKey="ma7" stroke="#f59e0b" fill="none" strokeDasharray="5 5" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={trendData}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: axisColor }} tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fill="url(#revGrad)" dot={false} />
+                <Area type="monotone" dataKey="ma7" stroke="#f59e0b" strokeWidth={1.5} fill="none" strokeDasharray="5 5" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="h-64 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-sm">
+            <div className="h-56 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
               No sales data — upload your POS data in Inventory Insights
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Zone highlights (from selected floor) */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-800 mb-4">
+      {/* ── Zone highlights + Top products ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        {/* Zone highlights */}
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">
             Zone Highlights
-            {selectedFloor && <span className="text-xs text-slate-400 font-normal ml-1">— {selectedFloor.floor_name}</span>}
+            {selectedFloor && <span className="text-xs text-slate-400 dark:text-gray-500 font-normal ml-1.5">— {selectedFloor.floor_name}</span>}
           </h2>
-          {selectedFloor?.zones?.length > 0 ? selectedFloor.zones.slice(0, 4).map((zone, i) => (
-            <div key={i} className="flex items-start gap-3 mb-3 p-2 rounded-lg hover:bg-slate-50">
-              <div className={'w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ' + (
-                zone.level.includes('High') ? 'bg-red-400' :
-                zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
-              )} />
-              <div>
-                <p className="text-sm font-medium text-slate-700">{zone.name}</p>
-                <p className="text-xs text-slate-400">{zone.level}</p>
-              </div>
+          {selectedFloor?.zones?.length > 0 ? (
+            <div className="space-y-2">
+              {selectedFloor.zones.slice(0, 4).map((zone, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gray-800">
+                  <div className={'w-2 h-2 rounded-full shrink-0 ' + (
+                    zone.level.includes('High') ? 'bg-red-400' :
+                    zone.level.includes('Moderate') ? 'bg-amber-400' : 'bg-blue-400'
+                  )} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{zone.name}</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 truncate">{zone.level}</p>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400 dark:text-gray-500 shrink-0">{zone.density_score}</span>
+                </div>
+              ))}
             </div>
-          )) : (
-            <div className="py-8 text-center text-slate-400 text-sm">
-              {floors.length === 0
-                ? 'Configure cameras to see zone insights'
-                : 'No zone data for this floor'}
+          ) : (
+            <div className="py-10 text-center">
+              <p className="text-sm text-slate-400 dark:text-gray-500">
+                {floors.length === 0 ? 'Configure cameras to see zone insights' : 'No zone data for this floor'}
+              </p>
             </div>
           )}
         </div>
 
         {/* Top products */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-800 mb-4">Top Products</h2>
+        <div className={`${CARD} p-5`}>
+          <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Top Products</h2>
           {topProducts.length > 0 ? (
-            <div style={{ height: 230 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical">
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 9 }} width={90} />
-                  <Tooltip />
-                  <Bar dataKey="revenue" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={topProducts} layout="vertical">
+                <XAxis type="number" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: axisColor }} width={95} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="revenue" fill="#6366f1" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="h-56 flex items-center justify-center text-slate-400 text-sm">
+            <div className="h-52 flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
               No sales data available
             </div>
           )}
-        </div>
-
-        {/* Quick actions */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-800 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <Link to="/analytics" className="block p-3 bg-indigo-50 rounded-lg text-sm text-indigo-700 hover:bg-indigo-100 transition-colors">
-              Configure Floor Plans & Cameras
-            </Link>
-            <Link to="/marketing" className="block p-3 bg-purple-50 rounded-lg text-sm text-purple-700 hover:bg-purple-100 transition-colors">
-              Generate Marketing Content
-            </Link>
-            <Link to="/assistant" className="block p-3 bg-green-50 rounded-lg text-sm text-green-700 hover:bg-green-100 transition-colors">
-              Ask AI Advisor
-            </Link>
-            <Link to="/inventory" className="block p-3 bg-amber-50 rounded-lg text-sm text-amber-700 hover:bg-amber-100 transition-colors">
-              Check Inventory Alerts
-            </Link>
-          </div>
         </div>
       </div>
     </div>

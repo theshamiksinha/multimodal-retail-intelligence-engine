@@ -1,87 +1,124 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Megaphone, Bot, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard, BarChart3, Megaphone, Bot, Package,
+  ChevronLeft, ChevronRight, Sun, Moon,
+} from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
 import StoreAnalytics from './pages/StoreAnalytics';
 import MarketingGenerator from './pages/MarketingGenerator';
 import AIAssistant from './pages/AIAssistant';
 import InventoryInsights from './pages/InventoryInsights';
+import { useTheme } from './context/ThemeContext';
 import './index.css';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/',          label: 'Dashboard',      icon: LayoutDashboard },
   { path: '/analytics', label: 'Store Analytics', icon: BarChart3 },
-  { path: '/marketing', label: 'Marketing Generator', icon: Megaphone },
-  { path: '/assistant', label: 'AI Assistant', icon: Bot },
-  { path: '/inventory', label: 'Inventory Insights', icon: Package },
+  { path: '/marketing', label: 'Marketing',        icon: Megaphone },
+  { path: '/assistant', label: 'AI Assistant',     icon: Bot },
+  { path: '/inventory', label: 'Inventory',        icon: Package },
 ];
 
-function Sidebar({ sidebarOpen, setSidebarOpen }) {
+const PAGE_TITLES = {
+  '/':          'Dashboard',
+  '/analytics': 'Store Analytics',
+  '/marketing': 'Marketing Generator',
+  '/assistant': 'AI Assistant',
+  '/inventory': 'Inventory Insights',
+};
+
+function Sidebar({ open, setOpen }) {
   return (
-    <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} relative bg-white border-r border-slate-200 flex flex-col transition-all duration-300 shrink-0`}>
+    <aside className={`${open ? 'w-56' : 'w-16'} relative flex flex-col shrink-0 transition-all duration-300
+      bg-white dark:bg-gray-900 border-r border-slate-100 dark:border-gray-800`}>
+
       {/* Logo */}
-      <div className="h-14 px-4 border-b border-slate-200 flex items-center gap-3 overflow-hidden">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0">
+      <div className="h-16 px-4 border-b border-slate-100 dark:border-gray-800 flex items-center gap-3 overflow-hidden">
+        <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
           AI
         </div>
-        {sidebarOpen && (
-          <span className="font-semibold text-slate-800 text-sm whitespace-nowrap overflow-hidden">
-            Retail Intelligence
-          </span>
+        {open && (
+          <div className="overflow-hidden">
+            <p className="font-semibold text-slate-800 dark:text-gray-100 text-sm leading-tight whitespace-nowrap">
+              Retail Intel
+            </p>
+            <p className="text-xs text-slate-400 dark:text-gray-500 whitespace-nowrap">SME Platform</p>
+          </div>
         )}
       </div>
 
-      {/* Nav links */}
-      <nav className="flex-1 p-2 space-y-1 overflow-hidden">
+      {/* Navigation — 5 items (within Miller's 5±2) */}
+      <nav className="flex-1 p-3 space-y-0.5 overflow-hidden">
         {navItems.map(({ path, label, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}
             end={path === '/'}
-            title={!sidebarOpen ? label : undefined}
+            title={!open ? label : undefined}
             className={({ isActive }) =>
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ' +
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 ' +
               (isActive
-                ? 'bg-indigo-50 text-indigo-700 font-medium'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900')
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-100')
             }
           >
-            <Icon size={18} className="shrink-0" />
-            {sidebarOpen && (
-              <span className="whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>
-            )}
+            <Icon size={17} className="shrink-0" />
+            {open && <span className="whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Toggle button — sits on the border edge */}
+      {/* Collapse toggle */}
       <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="absolute -right-3 top-10 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-sm text-slate-400 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
+        onClick={() => setOpen(v => !v)}
+        className="absolute -right-3 top-[4.75rem] z-10 w-6 h-6
+          bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700
+          rounded-full flex items-center justify-center shadow-sm
+          text-slate-400 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
       >
-        {sidebarOpen ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+        {open ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
       </button>
     </aside>
   );
 }
 
+function Header() {
+  const location = useLocation();
+  const { dark, toggle } = useTheme();
+  const title = PAGE_TITLES[location.pathname] ?? 'Dashboard';
+
+  return (
+    <header className="h-16 px-6 shrink-0 flex items-center justify-between
+      bg-white dark:bg-gray-900 border-b border-slate-100 dark:border-gray-800">
+      <h1 className="text-base font-semibold text-slate-800 dark:text-gray-100">{title}</h1>
+      <button
+        onClick={toggle}
+        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        className="w-9 h-9 rounded-xl flex items-center justify-center
+          text-slate-500 dark:text-gray-400
+          hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
+      >
+        {dark ? <Sun size={17} /> : <Moon size={17} />}
+      </button>
+    </header>
+  );
+}
+
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [open, setOpen] = useState(true);
 
   return (
     <BrowserRouter>
-      <div className="flex h-screen bg-slate-50 overflow-hidden">
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-        <main className="flex-1 overflow-auto min-w-0">
-          <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-slate-800">Retail Intelligence Dashboard</h1>
-            <span className="text-xs text-slate-500">SME Retail Analytics Platform</span>
-          </header>
-          <div className="p-6">
+      <div className="flex h-screen bg-slate-50 dark:bg-gray-950 overflow-hidden">
+        <Sidebar open={open} setOpen={setOpen} />
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <Header />
+          <div className="flex-1 overflow-auto p-6">
             <ErrorBoundary>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/"          element={<Dashboard />} />
                 <Route path="/analytics" element={<StoreAnalytics />} />
                 <Route path="/marketing" element={<MarketingGenerator />} />
                 <Route path="/assistant" element={<AIAssistant />} />

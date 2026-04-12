@@ -8,6 +8,41 @@ import os
 _sales_data: pd.DataFrame | None = None
 _inventory_data: pd.DataFrame | None = None
 
+# ── Auto-load real CSV files if they exist ────────────────────────────────────
+# Backend CWD is backend/, real data lives one level up in ../data/
+_DATA_DIR           = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
+_REAL_SALES_CSV     = os.path.join(_DATA_DIR, "pos_sales.csv")
+_REAL_INVENTORY_CSV = os.path.join(_DATA_DIR, "inventory.csv")
+
+
+def _try_load_real_data():
+    """Load real CSV files on startup if they exist, mapping columns to what the service expects."""
+    global _sales_data, _inventory_data
+
+    if os.path.exists(_REAL_SALES_CSV):
+        try:
+            df = pd.read_csv(_REAL_SALES_CSV)
+            # Map actual CSV columns → internal names expected by get_sales_summary()
+            if "line_total" in df.columns and "revenue" not in df.columns:
+                df = df.rename(columns={"line_total": "revenue"})
+            if "gross_profit" in df.columns and "cost" not in df.columns:
+                df["cost"] = df["revenue"] - df["gross_profit"]
+            _sales_data = df
+            print(f"[sales_service] Loaded {len(df):,} rows from {_REAL_SALES_CSV}")
+        except Exception as e:
+            print(f"[sales_service] Could not load {_REAL_SALES_CSV}: {e}")
+
+    if os.path.exists(_REAL_INVENTORY_CSV):
+        try:
+            df = pd.read_csv(_REAL_INVENTORY_CSV)
+            _inventory_data = df
+            print(f"[sales_service] Loaded {len(df):,} rows from {_REAL_INVENTORY_CSV}")
+        except Exception as e:
+            print(f"[sales_service] Could not load {_REAL_INVENTORY_CSV}: {e}")
+
+
+_try_load_real_data()
+
 
 def generate_sample_data():
     """Generate realistic sample sales and inventory data for a small retail store."""
@@ -130,7 +165,11 @@ def get_sales_summary() -> dict:
 
     total_revenue = round(df["revenue"].sum(), 2)
     total_items = int(df["quantity"].sum())
-    total_profit = round((df["revenue"] - df["cost"]).sum(), 2)
+    # cost column may not exist if real CSV had no cost field
+    if "cost" in df.columns:
+        total_profit = round((df["revenue"] - df["cost"]).sum(), 2)
+    else:
+        total_profit = 0.0
 
     # Top products by revenue
     top = df.groupby("product_name").agg(
@@ -185,27 +224,48 @@ def get_sales_summary() -> dict:
     }
 
 
+def _safe_records(df: pd.DataFrame) -> list[dict]:
+    """Convert a DataFrame to JSON-safe records: NaN → None, numpy scalars → Python natives."""
+    records = []
+    for row in df.to_dict("records"):
+        clean = {}
+        for k, v in row.items():
+            if isinstance(v, (np.integer,)):
+                clean[k] = int(v)
+            elif isinstance(v, (np.floating,)):
+                clean[k] = None if np.isnan(v) else float(v)
+            elif isinstance(v, float) and (v != v):   # float NaN
+                clean[k] = None
+            elif isinstance(v, np.bool_):
+                clean[k] = bool(v)
+            else:
+                clean[k] = v
+        records.append(clean)
+    return records
+
+
 def get_inventory_status() -> dict:
     if _inventory_data is None:
         generate_sample_data()
 
     df = _inventory_data.copy()
-    # Replace NaN with None for JSON serialization
-    df = df.where(df.notna(), None)
 
-    expiring_soon = df[df["days_to_expiry"].notna() & (df["days_to_expiry"] <= 7)].to_dict("records")
-    low_stock = df[df["current_stock"] <= df["reorder_point"]].to_dict("records")
-    overstock = df[df["current_stock"] > 80].to_dict("records")
+    # ── Filter on the ORIGINAL df (numeric dtypes, NaN works correctly) ──────
+    # Doing df.where(notna, None) BEFORE filtering converts numeric cols to
+    # object dtype, which makes <= comparisons raise TypeError in pandas 2.x.
+    expiring_mask = df["days_to_expiry"].notna() & (df["days_to_expiry"] <= 7)
+    low_stock_mask = df["current_stock"] <= df["reorder_point"]
+    overstock_mask = df["current_stock"] > 80
 
-    total_value = round((_inventory_data["current_stock"] * _inventory_data["unit_cost"]).sum(), 2)
+    total_value = round((df["current_stock"] * df["unit_cost"]).sum(), 2)
 
     return {
-        "total_products": len(df),
+        "total_products":        len(df),
         "total_inventory_value": total_value,
-        "expiring_soon": expiring_soon,
-        "low_stock": low_stock,
-        "overstock": overstock,
-        "all_items": df.to_dict("records"),
+        "expiring_soon":         _safe_records(df[expiring_mask]),
+        "low_stock":             _safe_records(df[low_stock_mask]),
+        "overstock":             _safe_records(df[overstock_mask]),
+        "all_items":             _safe_records(df),
     }
 
 
