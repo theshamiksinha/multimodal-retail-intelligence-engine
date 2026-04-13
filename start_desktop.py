@@ -1,9 +1,10 @@
-"""Start both backend and frontend servers."""
+"""Start backend + Vite dev server, then open the app in Electron."""
 import subprocess
 import os
 import sys
 import time
 import signal
+import urllib.request
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(PROJECT_DIR, "backend")
@@ -14,11 +15,7 @@ processes = []
 
 
 def free_port(port):
-    """Kill any process occupying the given port."""
-    result = subprocess.run(
-        ["lsof", "-ti", f":{port}"],
-        capture_output=True, text=True,
-    )
+    result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True)
     pids = result.stdout.strip().split()
     for pid in pids:
         if pid:
@@ -28,18 +25,29 @@ def free_port(port):
         time.sleep(1)
 
 
+def wait_for_url(url, timeout=30):
+    """Poll until the URL responds or timeout is reached."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            urllib.request.urlopen(url, timeout=2)
+            return True
+        except Exception:
+            time.sleep(1)
+    return False
+
+
 def cleanup(sig=None, frame=None):
     print("\nShutting down...")
-    for p in processes:
+    for p in reversed(processes):
         try:
             p.terminate()
             p.wait(timeout=5)
         except Exception:
             p.kill()
-    # Also free the ports to be safe
     free_port(8000)
     free_port(5173)
-    print("All servers stopped.")
+    print("All processes stopped.")
     sys.exit(0)
 
 
@@ -48,7 +56,6 @@ signal.signal(signal.SIGTERM, cleanup)
 
 
 def main():
-    # Check venv exists
     if not os.path.exists(VENV_PYTHON):
         print("Backend venv not found. Run this first:")
         print(f"  cd {BACKEND_DIR} && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt")
@@ -62,11 +69,10 @@ def main():
         check=True,
     )
 
-    # Install / update frontend dependencies
+    # Install / update frontend dependencies (includes electron devDependency)
     print("Syncing frontend dependencies...")
     subprocess.run(["npm", "install", "--silent"], cwd=FRONTEND_DIR, check=True)
 
-    # Free ports before starting
     print("Checking ports...")
     free_port(8000)
     free_port(5173)
@@ -82,13 +88,12 @@ def main():
     processes.append(backend)
     time.sleep(3)
 
-    # Check backend actually started
     if backend.poll() is not None:
         print(f"ERROR: Backend failed to start (exit code {backend.returncode})")
         sys.exit(1)
 
-    # Start frontend
-    print("Starting frontend on http://localhost:5173 ...")
+    # Start Vite dev server
+    print("Starting Vite dev server on http://localhost:5173 ...")
     frontend = subprocess.Popen(
         ["npx", "vite", "--port", "5173"],
         cwd=FRONTEND_DIR,
@@ -96,20 +101,37 @@ def main():
         stderr=sys.stderr,
     )
     processes.append(frontend)
-    time.sleep(2)
+
+    # Wait until Vite is actually serving before launching Electron
+    print("Waiting for Vite to be ready...")
+    if not wait_for_url("http://localhost:5173", timeout=30):
+        print("ERROR: Vite dev server did not start in time.")
+        cleanup()
+
+    # Launch Electron
+    print("Launching Electron app...")
+    electron = subprocess.Popen(
+        ["npx", "electron", "."],
+        cwd=FRONTEND_DIR,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+    processes.append(electron)
 
     print("\n" + "=" * 50)
-    print("  Retail Intelligence Platform is running!")
-    print("  Frontend: http://localhost:5173")
+    print("  Retail Intelligence Platform (Desktop)")
     print("  Backend:  http://localhost:8000")
-    print("  Press Ctrl+C to stop both servers")
+    print("  Press Ctrl+C to quit")
     print("=" * 50 + "\n")
 
-    # Wait for either process to exit
+    # Exit when Electron window is closed
     while True:
-        for p in processes:
+        if electron.poll() is not None:
+            print("Electron window closed.")
+            cleanup()
+        for p in [backend, frontend]:
             if p.poll() is not None:
-                print(f"Process exited with code {p.returncode}")
+                print(f"A server process exited unexpectedly (code {p.returncode})")
                 cleanup()
         time.sleep(1)
 
