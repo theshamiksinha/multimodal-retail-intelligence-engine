@@ -1,6 +1,7 @@
 # OS files
 .DS_Store
 Thumbs.db
+.claude
 
 # Logs
 *.log
@@ -61,6 +62,7 @@ tmp/
 temp/
 *.tmp
 Project_Idea.pdf
+data_copy
 
 # Package lock files (uncomment only if needed)
 # package-lock.json

@@ -1,11 +1,223 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertTriangle, Package, TrendingDown, Clock } from 'lucide-react';
-import { getInventoryStatus, getSalesSummary } from '../api';
+import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart } from 'lucide-react';
+import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInventoryCsv, deleteInventoryFile, getSalesFileInfo, uploadSalesCsv, deleteSalesFile } from '../api';
 import { useTheme } from '../context/ThemeContext';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
+
+function CsvInventoryUpload({ onUploaded }) {
+  const fileRef = useRef();
+  const [fileInfo, setFileInfo]   = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting]   = useState(false);
+
+  useEffect(() => {
+    getInventoryFileInfo().then(r => setFileInfo(r.data)).catch(() => {});
+  }, []);
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await uploadInventoryCsv(fd);
+      setFileInfo({ loaded: true, filename: file.name, records: res.data.records });
+      onUploaded?.();
+    } catch (err) {
+      alert('Upload failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Remove the uploaded inventory file and revert to sample data?')) return;
+    setDeleting(true);
+    try {
+      await deleteInventoryFile();
+      setFileInfo({ loaded: false, filename: null, records: 0 });
+      onUploaded?.();
+    } catch (err) {
+      alert('Delete failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className={`${CARD} p-5 flex flex-col`}>
+      <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
+
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-5">
+        <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl">
+          <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">CSV / Excel Import</h3>
+          <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
+            Upload or replace your inventory file
+          </p>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex flex-col items-center gap-4 py-6 flex-1 justify-center">
+        {fileInfo?.loaded ? (
+          <div className="w-full space-y-3">
+            <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl">
+              <Upload size={15} className="text-emerald-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 truncate">{fileInfo.filename}</p>
+                <p className="text-xs text-emerald-600/70 dark:text-emerald-500">{fileInfo.records} products loaded</p>
+              </div>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
+                title="Remove file"
+              >
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-indigo-400 hover:text-indigo-500 transition-colors disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+              {uploading ? 'Uploading…' : 'Replace with a new file'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
+              Upload a <span className="font-medium text-slate-500 dark:text-gray-400">.csv</span> or{' '}
+              <span className="font-medium text-slate-500 dark:text-gray-400">.xlsx</span> file with columns like{' '}
+              <span className="italic">product_name, current_stock, unit_price, days_to_expiry…</span>
+            </p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="group relative flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+              {uploading ? 'Uploading…' : 'Import CSV / Excel'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CsvSalesUpload({ onUploaded }) {
+  const fileRef = useRef();
+  const [fileInfo, setFileInfo]   = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting]   = useState(false);
+
+  useEffect(() => {
+    getSalesFileInfo().then(r => setFileInfo(r.data)).catch(() => {});
+  }, []);
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await uploadSalesCsv(fd);
+      setFileInfo({ loaded: true, filename: file.name, records: res.data.records });
+      onUploaded?.();
+    } catch (err) {
+      alert('Upload failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Remove the uploaded POS sales file and revert to sample data?')) return;
+    setDeleting(true);
+    try {
+      await deleteSalesFile();
+      setFileInfo({ loaded: false, filename: null, records: 0 });
+      onUploaded?.();
+    } catch (err) {
+      alert('Delete failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className={`${CARD} p-5`}>
+      <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
+
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-2 bg-violet-50 dark:bg-violet-950/40 rounded-xl">
+          <ShoppingCart size={16} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">POS Sales Import</h3>
+          <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
+            Upload or replace your sales transactions file
+          </p>
+        </div>
+      </div>
+
+      {fileInfo?.loaded ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 rounded-xl">
+            <Upload size={15} className="text-violet-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-violet-700 dark:text-violet-400 truncate">{fileInfo.filename}</p>
+              <p className="text-xs text-violet-600/70 dark:text-violet-500">{fileInfo.records.toLocaleString()} transactions loaded</p>
+            </div>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
+              title="Remove file"
+            >
+              {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            </button>
+          </div>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-violet-400 hover:text-violet-500 transition-colors disabled:opacity-50"
+          >
+            {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+            {uploading ? 'Uploading…' : 'Replace with a new file'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-400 dark:text-gray-500 flex-1">
+            Expects columns like <span className="italic">date, product_name, quantity, line_total…</span>
+          </p>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm active:scale-95 disabled:opacity-50 shrink-0"
+          >
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+            {uploading ? 'Uploading…' : 'Import'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InventoryInsights() {
   const { dark } = useTheme();
@@ -13,7 +225,7 @@ export default function InventoryInsights() {
   const [sales, setSales]         = useState(null);
   const [loading, setLoading]     = useState(true);
 
-  useEffect(() => {
+  const fetchData = () => {
     Promise.all([
       getInventoryStatus().catch(() => null),
       getSalesSummary().catch(() => null),
@@ -22,7 +234,9 @@ export default function InventoryInsights() {
       setSales(s?.data);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const axisColor   = dark ? '#6b7280' : '#94a3b8';
   const tooltipStyle = dark
@@ -39,9 +253,13 @@ export default function InventoryInsights() {
 
   return (
     <div className="space-y-5">
-      <VoiceInventoryAdd onProductsAdded={() => {
-  // re-fetch your inventory, e.g. call getInventoryStatus()
-}} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <VoiceInventoryAdd onProductsAdded={fetchData} />
+        <div className="flex flex-col gap-5">
+          <CsvInventoryUpload onUploaded={fetchData} />
+          <CsvSalesUpload onUploaded={fetchData} />
+        </div>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

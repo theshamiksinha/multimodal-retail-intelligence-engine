@@ -13,6 +13,12 @@ export const getHeatmap = (sessionId) => api.get(`/video/heatmap/${sessionId}`);
 // Sales & Inventory
 export const getSalesSummary = () => api.get('/sales/summary');
 export const getInventoryStatus = () => api.get('/sales/inventory');
+export const getInventoryFileInfo = () => api.get('/sales/inventory/file-info');
+export const uploadInventoryCsv = (formData) => api.post('/sales/upload/inventory', formData, { timeout: 30000 });
+export const deleteInventoryFile = () => api.delete('/sales/inventory/file');
+export const getSalesFileInfo = () => api.get('/sales/sales/file-info');
+export const uploadSalesCsv = (formData) => api.post('/sales/upload/sales', formData, { timeout: 60000 });
+export const deleteSalesFile = () => api.delete('/sales/sales/file');
 export const generateSampleData = () => api.post('/sales/generate-sample');
 
 // Marketing

@@ -157,6 +157,18 @@ def load_inventory_csv(file_path: str):
     return {"records": len(_inventory_data)}
 
 
+def reset_inventory():
+    """Clear in-memory inventory so the next call falls back to sample data."""
+    global _inventory_data
+    _inventory_data = None
+
+
+def reset_sales():
+    """Clear in-memory sales data so the next call falls back to sample data."""
+    global _sales_data
+    _sales_data = None
+
+
 def get_sales_summary() -> dict:
     if _sales_data is None:
         generate_sample_data()
