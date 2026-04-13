@@ -4,6 +4,7 @@ import { AlertTriangle, Package, TrendingDown, Clock } from 'lucide-react';
 import { getInventoryStatus, getSalesSummary } from '../api';
 import { useTheme } from '../context/ThemeContext';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
+import OCRInventoryAdd from './OCRInventoryAdd';
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
@@ -40,6 +41,9 @@ export default function InventoryInsights() {
   return (
     <div className="space-y-5">
       <VoiceInventoryAdd onProductsAdded={() => {
+  // re-fetch your inventory, e.g. call getInventoryStatus()
+}} />
+      <OCRInventoryAdd onProductsAdded={() => {
   // re-fetch your inventory, e.g. call getInventoryStatus()
 }} />
 

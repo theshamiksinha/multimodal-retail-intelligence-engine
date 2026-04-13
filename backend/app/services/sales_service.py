@@ -307,3 +307,11 @@ def get_context_for_advisor() -> str:
             lines.append(f"  - {item['product_name']}: {item['current_stock']} units (reorder point: {item['reorder_point']})")
 
     return "\n".join(lines)
+
+def save_inventory_csv():
+    global _inventory_data
+    if _inventory_data is None:
+        return
+
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    _inventory_data.to_csv(_REAL_INVENTORY_CSV, index=False)
