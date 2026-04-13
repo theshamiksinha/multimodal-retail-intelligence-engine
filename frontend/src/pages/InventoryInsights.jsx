@@ -5,6 +5,14 @@ import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInvent
 import { useTheme } from '../context/ThemeContext';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
 import OCRInventoryAdd from './OCRInventoryAdd';
+import { SETUP_KEY } from '../components/SetupWizard';
+
+function getFeatures() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SETUP_KEY)) || {};
+    return d.features || { voiceEntry: false, ocrEntry: false };
+  } catch { return { voiceEntry: false, ocrEntry: false }; }
+}
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
@@ -160,10 +168,11 @@ function CsvSalesUpload({ onUploaded }) {
   };
 
   return (
-    <div className={`${CARD} p-5`}>
+    <div className={`${CARD} p-5 flex flex-col`}>
       <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFile} />
 
-      <div className="flex items-center gap-2.5 mb-4">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-5">
         <div className="p-2 bg-violet-50 dark:bg-violet-950/40 rounded-xl">
           <ShoppingCart size={16} className="text-violet-600 dark:text-violet-400" />
         </div>
@@ -175,53 +184,58 @@ function CsvSalesUpload({ onUploaded }) {
         </div>
       </div>
 
-      {fileInfo?.loaded ? (
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 rounded-xl">
-            <Upload size={15} className="text-violet-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-violet-700 dark:text-violet-400 truncate">{fileInfo.filename}</p>
-              <p className="text-xs text-violet-600/70 dark:text-violet-500">{fileInfo.records.toLocaleString()} transactions loaded</p>
+      {/* Body */}
+      <div className="flex flex-col items-center gap-4 py-6 flex-1 justify-center">
+        {fileInfo?.loaded ? (
+          <div className="w-full space-y-3">
+            <div className="flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 rounded-xl">
+              <Upload size={15} className="text-violet-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-violet-700 dark:text-violet-400 truncate">{fileInfo.filename}</p>
+                <p className="text-xs text-violet-600/70 dark:text-violet-500">{fileInfo.records.toLocaleString()} transactions loaded</p>
+              </div>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
+                title="Remove file"
+              >
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
             </div>
             <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors disabled:opacity-50"
-              title="Remove file"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-violet-400 hover:text-violet-500 transition-colors disabled:opacity-50"
             >
-              {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+              {uploading ? 'Uploading…' : 'Replace with a new file'}
             </button>
           </div>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-violet-400 hover:text-violet-500 transition-colors disabled:opacity-50"
-          >
-            {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            {uploading ? 'Uploading…' : 'Replace with a new file'}
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <p className="text-xs text-slate-400 dark:text-gray-500 flex-1">
-            Expects columns like <span className="italic">date, product_name, quantity, line_total…</span>
-          </p>
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm active:scale-95 disabled:opacity-50 shrink-0"
-          >
-            {uploading ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
-            {uploading ? 'Uploading…' : 'Import'}
-          </button>
-        </div>
-      )}
+        ) : (
+          <>
+            <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
+              Expects columns like{' '}
+              <span className="italic">date, product_name, quantity, line_total…</span>
+            </p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="group relative flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50"
+            >
+              {uploading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />}
+              {uploading ? 'Uploading…' : 'Import POS Sales'}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function InventoryInsights() {
   const { dark } = useTheme();
+  const features = getFeatures();
   const [inventory, setInventory] = useState(null);
   const [sales, setSales]         = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -252,110 +266,169 @@ export default function InventoryInsights() {
     );
   }
 
+  const showVoice = features.voiceEntry;
+  const showOcr   = features.ocrEntry;
+  const showAdvanced = showVoice || showOcr;
+
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <VoiceInventoryAdd onProductsAdded={fetchData} />
-        <OCRInventoryAdd onProductsAdded={fetchData} />
-      </div>
+      {showAdvanced && (
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-5`}>
+          {showVoice && <VoiceInventoryAdd onProductsAdded={fetchData} />}
+          {showOcr   && <OCRInventoryAdd  onProductsAdded={fetchData} />}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <CsvInventoryUpload onUploaded={fetchData} />
         <CsvSalesUpload onUploaded={fetchData} />
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className={`${CARD} p-5`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
-              <Package size={15} className="text-indigo-600 dark:text-indigo-400" />
+      {/* Summary cards — only when data exists */}
+      {inventory ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
+                  <Package size={15} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">Total Products</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-800 dark:text-gray-100">{inventory.total_products}</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                Value: ${inventory.total_inventory_value?.toLocaleString()}
+              </p>
             </div>
-            <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">Total Products</span>
+
+            <div className={`${CARD} p-5 border-amber-100 dark:border-amber-900/40`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl">
+                  <Clock size={15} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Expiring Soon</span>
+              </div>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{inventory.expiring_soon?.length ?? 0}</p>
+              <p className="text-xs text-amber-500 mt-1">Within 7 days</p>
+            </div>
+
+            <div className={`${CARD} p-5 border-red-100 dark:border-red-900/40`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-red-50 dark:bg-red-950/40 rounded-xl">
+                  <AlertTriangle size={15} className="text-red-600 dark:text-red-400" />
+                </div>
+                <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Low Stock</span>
+              </div>
+              <p className="text-2xl font-bold text-red-700 dark:text-red-300">{inventory.low_stock?.length ?? 0}</p>
+              <p className="text-xs text-red-500 mt-1">Below reorder point</p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-slate-800 dark:text-gray-100">{inventory?.total_products || 0}</p>
-          <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
-            Value: ${inventory?.total_inventory_value?.toLocaleString() || 0}
+
+          {/* Expiry + Low stock */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className={`${CARD} p-5`}>
+              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
+                <AlertTriangle size={14} className="text-amber-500" /> Expiring Soon
+              </h3>
+              {inventory.expiring_soon?.length > 0 ? (
+                <div className="space-y-2">
+                  {inventory.expiring_soon.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">{item.category} · {item.current_stock} in stock</p>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        item.days_to_expiry <= 3
+                          ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'
+                          : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
+                      }`}>
+                        {item.days_to_expiry}d left
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">No products expiring soon</p>
+              )}
+            </div>
+
+            <div className={`${CARD} p-5`}>
+              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
+                <TrendingDown size={14} className="text-red-500" /> Low Stock Alert
+              </h3>
+              {inventory.low_stock?.length > 0 ? (
+                <div className="space-y-2">
+                  {inventory.low_stock.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">{item.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.current_stock} units</p>
+                        <p className="text-xs text-slate-400 dark:text-gray-500">Reorder at {item.reorder_point}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">All products adequately stocked</p>
+              )}
+            </div>
+          </div>
+
+          {/* Full inventory table */}
+          <div className={`${CARD} p-5`}>
+            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Full Inventory</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-gray-800">
+                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
+                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Category</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Stock</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Expiry</th>
+                    <th className="pb-3 text-center text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
+                  {inventory.all_items?.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="py-3 text-slate-800 dark:text-gray-200 font-medium">{item.product_name}</td>
+                      <td className="py-3 text-slate-500 dark:text-gray-400">{item.category}</td>
+                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">{item.current_stock}</td>
+                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">${item.unit_price}</td>
+                      <td className="py-3 text-right text-slate-500 dark:text-gray-400">
+                        {item.days_to_expiry != null ? `${item.days_to_expiry}d` : '—'}
+                      </td>
+                      <td className="py-3 text-center">
+                        {item.current_stock <= item.reorder_point ? (
+                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium">Low</span>
+                        ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
+                          <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">Expiring</span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">OK</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className={`${CARD} p-10 flex flex-col items-center gap-3 text-center`}>
+          <Package size={32} className="text-slate-300 dark:text-gray-600" />
+          <p className="text-sm font-medium text-slate-500 dark:text-gray-400">No inventory data yet</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500 max-w-xs">
+            Upload a CSV / Excel file above, or use Voice / OCR entry to add your first products.
           </p>
         </div>
+      )}
 
-        <div className={`${CARD} p-5 border-amber-100 dark:border-amber-900/40`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl">
-              <Clock size={15} className="text-amber-600 dark:text-amber-400" />
-            </div>
-            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Expiring Soon</span>
-          </div>
-          <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{inventory?.expiring_soon?.length || 0}</p>
-          <p className="text-xs text-amber-500 dark:text-amber-500 mt-1">Within 7 days</p>
-        </div>
-
-        <div className={`${CARD} p-5 border-red-100 dark:border-red-900/40`}>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 bg-red-50 dark:bg-red-950/40 rounded-xl">
-              <AlertTriangle size={15} className="text-red-600 dark:text-red-400" />
-            </div>
-            <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Low Stock</span>
-          </div>
-          <p className="text-2xl font-bold text-red-700 dark:text-red-300">{inventory?.low_stock?.length || 0}</p>
-          <p className="text-xs text-red-500 mt-1">Below reorder point</p>
-        </div>
-      </div>
-
-      {/* Expiry + Low stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className={`${CARD} p-5`}>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-            <AlertTriangle size={14} className="text-amber-500" /> Expiring Soon
-          </h3>
-          {inventory?.expiring_soon?.length > 0 ? (
-            <div className="space-y-2">
-              {inventory.expiring_soon.map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">{item.category} · {item.current_stock} in stock</p>
-                  </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    item.days_to_expiry <= 3
-                      ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'
-                      : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
-                  }`}>
-                    {item.days_to_expiry}d left
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">No products expiring soon</p>
-          )}
-        </div>
-
-        <div className={`${CARD} p-5`}>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-            <TrendingDown size={14} className="text-red-500" /> Low Stock Alert
-          </h3>
-          {inventory?.low_stock?.length > 0 ? (
-            <div className="space-y-2">
-              {inventory.low_stock.map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">{item.category}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.current_stock} units</p>
-                    <p className="text-xs text-slate-400 dark:text-gray-500">Reorder at {item.reorder_point}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">All products adequately stocked</p>
-          )}
-        </div>
-      </div>
-
-      {/* Slow movers chart */}
+      {/* Slow movers chart — only when sales data exists */}
       {sales?.slow_movers && (
         <div className={`${CARD} p-5`}>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Slowest Moving Products (90 Days)</h3>
@@ -369,47 +442,6 @@ export default function InventoryInsights() {
           </ResponsiveContainer>
         </div>
       )}
-
-      {/* Full inventory table */}
-      <div className={`${CARD} p-5`}>
-        <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Full Inventory</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-gray-800">
-                <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
-                <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Category</th>
-                <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Stock</th>
-                <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
-                <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Expiry</th>
-                <th className="pb-3 text-center text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
-              {inventory?.all_items?.map((item, i) => (
-                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <td className="py-3 text-slate-800 dark:text-gray-200 font-medium">{item.product_name}</td>
-                  <td className="py-3 text-slate-500 dark:text-gray-400">{item.category}</td>
-                  <td className="py-3 text-right text-slate-800 dark:text-gray-200">{item.current_stock}</td>
-                  <td className="py-3 text-right text-slate-800 dark:text-gray-200">${item.unit_price}</td>
-                  <td className="py-3 text-right text-slate-500 dark:text-gray-400">
-                    {item.days_to_expiry != null ? `${item.days_to_expiry}d` : '—'}
-                  </td>
-                  <td className="py-3 text-center">
-                    {item.current_stock <= item.reorder_point ? (
-                      <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium">Low</span>
-                    ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
-                      <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">Expiring</span>
-                    ) : (
-                      <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">OK</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }

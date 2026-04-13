@@ -1,9 +1,13 @@
 import { useState, useCallback } from 'react';
 import SplashScreen from './components/SplashScreen';
+import AuthPage from './pages/AuthPage';
+
+const AUTH_KEY = 'retailIntelAuth';
+const isAuthed = () => { try { return !!sessionStorage.getItem(AUTH_KEY); } catch { return false; } };
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart3, Megaphone, Bot, Package,
-  ChevronLeft, ChevronRight, Sun, Moon, Store,
+  ChevronLeft, ChevronRight, Sun, Moon, Store, LogOut, Settings,
 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +15,7 @@ import StoreAnalytics from './pages/StoreAnalytics';
 import MarketingGenerator from './pages/MarketingGenerator';
 import AIAssistant from './pages/AIAssistant';
 import InventoryInsights from './pages/InventoryInsights';
+import SettingsPage from './pages/SettingsPage';
 import { useTheme } from './context/ThemeContext';
 import './index.css';
 
@@ -28,9 +33,10 @@ const PAGE_TITLES = {
   '/marketing': 'Marketing Generator',
   '/assistant': 'AI Assistant',
   '/inventory': 'Inventory Insights',
+  '/settings':  'Store Settings',
 };
 
-function Sidebar({ open, setOpen }) {
+function Sidebar({ open, setOpen, onLogout }) {
   return (
     <aside className={`${open ? 'w-56' : 'w-16'} relative flex flex-col shrink-0 transition-all duration-300
       bg-white dark:bg-gray-900 border-r border-slate-100 dark:border-gray-800`}>
@@ -71,6 +77,34 @@ function Sidebar({ open, setOpen }) {
         ))}
       </nav>
 
+      {/* Bottom utilities */}
+      <div className="p-3 border-t border-slate-100 dark:border-gray-800 space-y-0.5">
+        <NavLink
+          to="/settings"
+          title={!open ? 'Settings' : undefined}
+          className={({ isActive }) =>
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 ' +
+            (isActive
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-gray-100')
+          }
+        >
+          <Settings size={17} className="shrink-0" />
+          {open && <span>Settings</span>}
+        </NavLink>
+
+        <button
+          onClick={onLogout}
+          title={!open ? 'Log out' : undefined}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+            text-slate-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-950/30
+            hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        >
+          <LogOut size={17} className="shrink-0" />
+          {open && <span>Log out</span>}
+        </button>
+      </div>
+
       {/* Collapse toggle */}
       <button
         onClick={() => setOpen(v => !v)}
@@ -108,15 +142,28 @@ function Header() {
 }
 
 function App() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen]     = useState(true);
   const [splash, setSplash] = useState(true);
+  const [authed, setAuthed] = useState(isAuthed);
   const hideSplash = useCallback(() => setSplash(false), []);
+
+  const handleAuthDone = useCallback(() => {
+    sessionStorage.setItem(AUTH_KEY, '1');
+    setAuthed(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem(AUTH_KEY);
+    setAuthed(false);
+  }, []);
+
+  if (splash) return <SplashScreen onDone={hideSplash} />;
+  if (!authed) return <AuthPage onDone={handleAuthDone} />;
 
   return (
     <BrowserRouter>
-      {splash && <SplashScreen onDone={hideSplash} />}
       <div className="flex h-screen bg-slate-50 dark:bg-gray-950 overflow-hidden">
-        <Sidebar open={open} setOpen={setOpen} />
+        <Sidebar open={open} setOpen={setOpen} onLogout={handleLogout} />
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           <Header />
           <div className="flex-1 overflow-auto p-6">
@@ -127,6 +174,7 @@ function App() {
                 <Route path="/marketing" element={<MarketingGenerator />} />
                 <Route path="/assistant" element={<AIAssistant />} />
                 <Route path="/inventory" element={<InventoryInsights />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </ErrorBoundary>
           </div>

@@ -169,9 +169,9 @@ def reset_sales():
     _sales_data = None
 
 
-def get_sales_summary() -> dict:
+def get_sales_summary() -> dict | None:
     if _sales_data is None:
-        generate_sample_data()
+        return None
 
     df = _sales_data
 
@@ -256,9 +256,9 @@ def _safe_records(df: pd.DataFrame) -> list[dict]:
     return records
 
 
-def get_inventory_status() -> dict:
+def get_inventory_status() -> dict | None:
     if _inventory_data is None:
-        generate_sample_data()
+        return None
 
     df = _inventory_data.copy()
 
@@ -286,37 +286,43 @@ def get_context_for_advisor() -> str:
     sales = get_sales_summary()
     inventory = get_inventory_status()
 
-    lines = [
-        "=== SALES SUMMARY (Last 90 Days) ===",
-        f"Total Revenue: ${sales['total_revenue']:,.2f}",
-        f"Total Items Sold: {sales['total_items_sold']:,}",
-        f"Total Profit: ${sales['total_profit']:,.2f}",
-        "",
-        "Top 5 Products by Revenue:",
-    ]
-    for p in sales["top_products"]:
-        lines.append(f"  - {p['name']}: ${p['revenue']:,.2f} ({p['quantity']} units)")
+    lines = []
 
-    lines.append("\nSlowest Moving Products:")
-    for p in sales["slow_movers"]:
-        lines.append(f"  - {p['name']}: ${p['revenue']:,.2f} ({p['quantity']} units)")
+    if sales:
+        lines += [
+            "=== SALES SUMMARY (Last 90 Days) ===",
+            f"Total Revenue: ${sales['total_revenue']:,.2f}",
+            f"Total Items Sold: {sales['total_items_sold']:,}",
+            f"Total Profit: ${sales['total_profit']:,.2f}",
+            "",
+            "Top 5 Products by Revenue:",
+        ]
+        for p in sales["top_products"]:
+            lines.append(f"  - {p['name']}: ${p['revenue']:,.2f} ({p['quantity']} units)")
+        lines.append("\nSlowest Moving Products:")
+        for p in sales["slow_movers"]:
+            lines.append(f"  - {p['name']}: ${p['revenue']:,.2f} ({p['quantity']} units)")
+        lines.append("\nCategory Breakdown:")
+        for c in sales["categories"]:
+            lines.append(f"  - {c['category']}: ${c['revenue']:,.2f} ({c['quantity']} units)")
+    else:
+        lines.append("No POS sales data has been uploaded yet.")
 
-    lines.append("\nCategory Breakdown:")
-    for c in sales["categories"]:
-        lines.append(f"  - {c['category']}: ${c['revenue']:,.2f} ({c['quantity']} units)")
-
-    lines.append("\n=== INVENTORY STATUS ===")
-    lines.append(f"Total Inventory Value: ${inventory['total_inventory_value']:,.2f}")
-
-    if inventory["expiring_soon"]:
-        lines.append("\nProducts Expiring Soon (within 7 days):")
-        for item in inventory["expiring_soon"]:
-            lines.append(f"  - {item['product_name']}: {item['current_stock']} units, expires in {item['days_to_expiry']} days")
-
-    if inventory["low_stock"]:
-        lines.append("\nLow Stock Alert:")
-        for item in inventory["low_stock"]:
-            lines.append(f"  - {item['product_name']}: {item['current_stock']} units (reorder point: {item['reorder_point']})")
+    if inventory:
+        lines += [
+            "\n=== INVENTORY STATUS ===",
+            f"Total Inventory Value: ${inventory['total_inventory_value']:,.2f}",
+        ]
+        if inventory["expiring_soon"]:
+            lines.append("\nProducts Expiring Soon (within 7 days):")
+            for item in inventory["expiring_soon"]:
+                lines.append(f"  - {item['product_name']}: {item['current_stock']} units, expires in {item['days_to_expiry']} days")
+        if inventory["low_stock"]:
+            lines.append("\nLow Stock Alert:")
+            for item in inventory["low_stock"]:
+                lines.append(f"  - {item['product_name']}: {item['current_stock']} units (reorder point: {item['reorder_point']})")
+    else:
+        lines.append("No inventory data has been uploaded yet.")
 
     return "\n".join(lines)
 

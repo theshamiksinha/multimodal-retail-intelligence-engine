@@ -8,7 +8,7 @@ export function ThemeProvider({ children }) {
       const saved = localStorage.getItem('theme');
       if (saved) return saved === 'dark';
     } catch {}
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
   });
 
   useEffect(() => {

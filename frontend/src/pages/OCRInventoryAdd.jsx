@@ -153,10 +153,13 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
       </div>
 
       {phase === 'idle' && (
-        <div className="flex flex-col items-center gap-4 py-6">
-          <label className="cursor-pointer flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition">
+        <div className="flex flex-col items-center gap-4 py-6 flex-1 justify-center">
+          <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
+            Example: &ldquo;Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays&rdquo;
+          </p>
+          <label className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition shadow-md hover:shadow-lg active:scale-95">
             <Upload size={16} />
-            Upload image
+            Upload Image
             <input
               type="file"
               accept="image/*"
@@ -164,9 +167,6 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
               onChange={e => handleImageUpload(e.target.files?.[0])}
             />
           </label>
-          <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
-            Example: “Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays”
-          </p>
         </div>
       )}
 

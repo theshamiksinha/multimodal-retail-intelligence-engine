@@ -4,11 +4,17 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, A
 import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus } from '../api';
 import { useTheme } from '../context/ThemeContext';
+import { SETUP_KEY } from '../components/SetupWizard';
+
+function getStoreName() {
+  try { return JSON.parse(localStorage.getItem(SETUP_KEY))?.storeName || ''; } catch { return ''; }
+}
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
 export default function Dashboard() {
   const { dark } = useTheme();
+  const storeName = getStoreName();
   const [sales, setSales]           = useState(null);
   const [inventory, setInventory]   = useState(null);
   const [floors, setFloors]         = useState([]);
@@ -125,6 +131,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+
+      {/* ── Store greeting ── */}
+      {storeName && (
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-gray-100">{storeName}</h2>
+          <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Here's what's happening in your store</p>
+        </div>
+      )}
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
