@@ -1,7 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Trash2, Loader2, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Send, Bot, User, Trash2, Loader2, Mic, MicOff, Volume2, Sparkles, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { chatWithAdvisor, clearAdvisorSession } from '../api';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+
+const AD_GENERATE_PATTERN = /\b(generate|create|make|save|turn|convert)\b.{0,30}\b(ads?|advertisements?|campaigns?|posts?)\b/i;
+const EXPIRING_PATTERN    = /\bexpir(ing|ed|es?)\b|\babout to expire\b|\bclearance\b/i;
+const TOP_PRODUCTS_PATTERN = /\btop\b|\bbest.sell(ing|ers?)\b|\bpopular\b|\bslowest\b|\bslow.mov/i;
+
+async function generateAdDrafts(text, tone = 'engaging', platform = 'instagram') {
+  const r = await axios.post('/api/marketing/archive/generate', { advisor_text: text, tone, platform });
+  return r.data;
+}
+
+async function generateAdDraftsFromSource(source /* 'expiring' | 'top' */) {
+  // Fetch from the right endpoint and build a pseudo-advisor text the backend can parse
+  const endpoint = source === 'expiring'
+    ? '/api/marketing/expiring-products?limit=8'
+    : '/api/marketing/top-products?limit=8';
+  const r = await axios.get(endpoint);
+  const products = r.data.products || [];
+  if (!products.length) return { ads: [], count: 0 };
+  // Build a text the advisor extractor can parse
+  const lines = products.map((p, i) =>
+    `${i + 1}. ${p.name}${source === 'expiring' && p.days_to_expiry != null ? ` (expires in ${p.days_to_expiry} days)` : ''}`
+  ).join('\n');
+  const advisorText = source === 'expiring'
+    ? `Here are products that need clearance promotion:\n${lines}`
+    : `Here are the top-selling products to promote:\n${lines}`;
+  return generateAdDrafts(advisorText, 'engaging', 'instagram');
+}
 
 const GOOGLE_API_KEY      = import.meta.env.VITE_GOOGLE_STT_API_KEY;
 const ELEVENLABS_API_KEY  = import.meta.env.VITE_ELEVENLABS_API_KEY;
@@ -116,6 +145,40 @@ export default function AIAssistant() {
     if (!msg || loading) return;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: msg }]);
+
+    // Intercept "generate ads" intent
+    if (AD_GENERATE_PATTERN.test(msg)) {
+      setLoading(true);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', adGenerating: true }]);
+      try {
+        let result;
+        if (EXPIRING_PATTERN.test(msg)) {
+          // User explicitly wants expiring product ads
+          result = await generateAdDraftsFromSource('expiring');
+        } else if (TOP_PRODUCTS_PATTERN.test(msg)) {
+          // User explicitly wants top product ads
+          result = await generateAdDraftsFromSource('top');
+        } else {
+          // Try to extract from last AI message; fall back to top products
+          const lastAI = [...messages].reverse().find(m => m.role === 'assistant' && m.content);
+          result = lastAI
+            ? await generateAdDrafts(lastAI.content)
+            : await generateAdDraftsFromSource('top');
+        }
+        setMessages(prev => [
+          ...prev.filter(m => !m.adGenerating),
+          { role: 'assistant', content: '', adResult: result },
+        ]);
+      } catch {
+        setMessages(prev => [
+          ...prev.filter(m => !m.adGenerating),
+          { role: 'assistant', content: 'Sorry, could not generate ad drafts. Make sure the backend is running.' },
+        ]);
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await chatWithAdvisor(msg);
@@ -166,17 +229,62 @@ export default function AIAssistant() {
             )}
 
             <div className={`max-w-[76%] space-y-2 ${msg.role === 'user' ? 'order-first' : ''}`}>
-              <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-indigo-600 text-white rounded-tr-sm'
-                  : 'bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-200 rounded-tl-sm'
-              }`}>
-                {msg.role === 'assistant' ? (
-                  <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+              {msg.adGenerating ? (
+                <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-4 flex items-center gap-3">
+                  <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-gray-200">Generating ad drafts…</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Extracting products and writing captions</p>
                   </div>
-                ) : msg.content}
-              </div>
+                </div>
+              ) : msg.adResult ? (
+                <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-4 space-y-3">
+                  {msg.adResult.count > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle size={15} className="text-emerald-500 shrink-0" />
+                        <p className="text-sm font-semibold text-slate-800 dark:text-gray-100">
+                          {msg.adResult.count} ad draft{msg.adResult.count !== 1 ? 's' : ''} saved
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {msg.adResult.ads.slice(0, 3).map((ad, j) => (
+                          <div key={j} className="px-3 py-2 bg-white dark:bg-gray-900 rounded-xl border border-slate-200 dark:border-gray-700">
+                            <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">{ad.product_name}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5 line-clamp-2">{ad.caption}</p>
+                          </div>
+                        ))}
+                        {msg.adResult.count > 3 && (
+                          <p className="text-xs text-slate-400 dark:text-gray-500">+{msg.adResult.count - 3} more…</p>
+                        )}
+                      </div>
+                      <Link
+                        to="/marketing"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        <ExternalLink size={11} /> View in Marketing → Drafts
+                      </Link>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={15} className="text-amber-500 shrink-0" />
+                      <p className="text-sm text-slate-600 dark:text-gray-300">No products found in the previous response. Ask me for campaign suggestions first.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-tr-sm'
+                    : 'bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-200 rounded-tl-sm'
+                }`}>
+                  {msg.role === 'assistant' ? (
+                    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : msg.content}
+                </div>
+              )}
 
               {msg.role === 'assistant' && (
                 <button

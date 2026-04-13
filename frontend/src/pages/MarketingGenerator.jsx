@@ -1043,6 +1043,29 @@ export default function MarketingGenerator() {
   const [musicError,   setMusicError]   = useState(null);
   const [musicGenre,   setMusicGenre]   = useState('none');
   const [copied,       setCopied]       = useState(false);
+  const [savedToDraft, setSavedToDraft] = useState(false);
+
+  const handleSaveToDraft = async () => {
+    if (!result || savedToDraft) return;
+    try {
+      await axios.post('/api/marketing/archive/save', {
+        product_name: form.product_name || 'Untitled Product',
+        caption:      result.caption || '',
+        hashtags:     result.hashtags || [],
+        image_url:    result.image_url || null,
+        campaign_type: form.campaign_type || 'social_media',
+        platform:     form.platform || 'instagram',
+        tone:         form.tone || 'engaging',
+      });
+      setSavedToDraft(true);
+      setTimeout(() => {
+        handleClearOutput();
+        setSavedToDraft(false);
+      }, 800);
+    } catch (e) {
+      alert('Failed to save draft: ' + (e.response?.data?.detail || e.message));
+    }
+  };
 
   const [voiceoverText,    setVoiceoverText]    = useState('');
   const [voiceoverLoading, setVoiceoverLoading] = useState(false);
@@ -1113,6 +1136,7 @@ export default function MarketingGenerator() {
     setMusicError(null);
     setVoiceoverText('');
     setVoiceoverFetched(false);
+    setSavedToDraft(false);
   };
 
   const handleGenerate = async () => {
@@ -1281,7 +1305,7 @@ export default function MarketingGenerator() {
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-slate-100 dark:bg-gray-800 rounded-xl w-fit">
-        {[['create','Create',Sparkles],['calendar','Calendar',CalendarDays]].map(([t,l,Icon])=>(
+        {[['create','Create',Sparkles],['calendar','Calendar',CalendarDays],['drafts','Drafts',Bot]].map(([t,l,Icon])=>(
           <button key={t} onClick={()=>handleTabClick(t)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all
               ${tab===t?'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm':'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'}`}>
@@ -1499,6 +1523,11 @@ export default function MarketingGenerator() {
                         className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 border border-slate-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 transition-colors">
                         <Trash2 size={12}/> Clear
                       </button>
+                      <button onClick={handleSaveToDraft} disabled={savedToDraft}
+                        className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 transition-colors ${savedToDraft ? 'border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400' : 'border-slate-200 dark:border-gray-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:text-indigo-400 dark:hover:border-indigo-700'}`}>
+                        {savedToDraft ? <Check size={12} className="text-emerald-500"/> : <Bot size={12}/>}
+                        {savedToDraft ? 'Saved!' : 'Add to Drafts'}
+                      </button>
                       <button onClick={copyCaption}
                         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-gray-200 border border-slate-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 transition-colors">
                         {copied?<Check size={12} className="text-green-500"/>:<Copy size={12}/>}{copied?'Copied!':'Copy'}
@@ -1665,6 +1694,312 @@ export default function MarketingGenerator() {
             </>
           )}
         </div>
+      )}
+
+      {/* ═══ DRAFTS TAB ══════════════════════════════════════════════════════ */}
+      {tab==='drafts' && <DraftsTab />}
+    </div>
+  );
+}
+
+
+// ─── Draft Schedule Modal ─────────────────────────────────────────────────────
+function DraftScheduleModal({ ad, onClose, onScheduled }) {
+  const today = new Date().toISOString().slice(0, 16);
+  const [platform, setPlatform] = useState(ad.platform || 'instagram');
+  const [postType, setPostType] = useState('post');
+  const [schedAt,  setSchedAt]  = useState(today);
+  const [pubState, setPubState] = useState('idle'); // idle | posting | done | error
+  const [pubError, setPubError] = useState(null);
+
+  const captionText = ad.caption + (platform === 'instagram'
+    ? '\n\n' + (ad.hashtags || []).join(' ')
+    : '');
+
+  const handleSchedule = async () => {
+    setPubState('posting'); setPubError(null);
+    try {
+      await postToBuffer({
+        platform,
+        post_type: postType,
+        caption: captionText,
+        hashtags: ad.hashtags || [],
+        image_data_url: ad.image_url || null,
+        video_url: null,
+        scheduled_at: ensureFutureUTC(schedAt, 3),
+      });
+      setPubState('done');
+      onScheduled?.({
+        id: `draft_${Date.now()}`,
+        created_at: new Date().toISOString(),
+        product_name: ad.product_name,
+        platform,
+        post_type: postType,
+        campaign_type: ad.campaign_type,
+        caption: ad.caption,
+        hashtags: ad.hashtags || [],
+        image_url: ad.image_url || null,
+        video_url: null,
+        scheduled_at: ensureFutureUTC(schedAt, 3),
+        status: 'scheduled',
+      });
+    } catch (e) {
+      setPubState('error');
+      setPubError(normalizeError(e));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-gray-800">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-800">
+          <div>
+            <h2 className="font-semibold text-slate-800 dark:text-gray-100">Schedule Draft</h2>
+            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{ad.product_name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-light leading-none">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {pubState === 'done' ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
+                <Check size={18} className="text-emerald-600"/>
+              </div>
+              <p className="font-semibold text-slate-800 dark:text-gray-100">Scheduled!</p>
+              <p className="text-xs text-slate-400">Your post has been queued in Buffer.</p>
+              <button onClick={onClose} className="mt-2 px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Done</button>
+            </div>
+          ) : (
+            <>
+              {/* Caption preview */}
+              <div className="p-3 bg-slate-50 dark:bg-gray-800 rounded-xl text-xs text-slate-600 dark:text-gray-300 leading-relaxed max-h-28 overflow-y-auto">
+                {ad.caption}
+              </div>
+
+              {/* Platform */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Platform</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(PLATFORMS).map(([k, cfg]) => {
+                    const Icon = cfg.icon;
+                    const on = platform === k;
+                    return (
+                      <button key={k} onClick={() => { setPlatform(k); setPostType('post'); }}
+                        className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-semibold transition-all ${on ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
+                        <Icon size={13} className={on ? 'text-indigo-600' : cfg.color}/>{cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Post type (Instagram only) */}
+              {PLATFORMS[platform].types.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Type</label>
+                  <div className="flex p-1 bg-slate-100 dark:bg-gray-800 rounded-lg gap-1">
+                    {PLATFORMS[platform].types.filter(t => t !== 'reel').map(pt => {
+                      const Icon = TYPE_ICONS[pt];
+                      const on = postType === pt;
+                      return (
+                        <button key={pt} onClick={() => setPostType(pt)} className={`${SEG_BASE} ${on ? SEG_ON : SEG_OFF}`}>
+                          <Icon size={12}/>{TYPE_LABELS[pt]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Schedule time */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+                  <Clock size={11}/> Schedule Date & Time
+                </label>
+                <DateTimePicker value={schedAt} onChange={setSchedAt}/>
+              </div>
+
+              {pubError && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg text-xs text-red-600 dark:text-red-400">
+                  <AlertCircle size={12} className="mt-0.5 shrink-0"/>{pubError}
+                </div>
+              )}
+
+              <button
+                onClick={handleSchedule}
+                disabled={pubState === 'posting'}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                {pubState === 'posting' ? <Loader2 size={15} className="animate-spin"/> : <Send size={15}/>}
+                {pubState === 'posting' ? 'Scheduling…' : 'Schedule via Buffer'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Drafts Tab ───────────────────────────────────────────────────────────────
+function DraftsTab() {
+  const [ads, setAds]           = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [deleting, setDeleting] = useState(null);
+  const [genImg, setGenImg]     = useState(null); // ad id currently generating image
+  const [scheduleAd, setScheduleAd] = useState(null);
+
+  const CARD2 = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get('/api/marketing/archive');
+      setAds((r.data.ads || []).slice().reverse());
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleDelete = async (id) => {
+    setDeleting(id);
+    try {
+      await axios.delete(`/api/marketing/archive/${id}`);
+      setAds(prev => prev.filter(a => a.id !== id));
+    } catch { /* ignore */ }
+    finally { setDeleting(null); }
+  };
+
+  const handleGenerateImage = async (id) => {
+    setGenImg(id);
+    try {
+      const r = await axios.post(`/api/marketing/archive/${id}/generate-image`);
+      const url = r.data.image_url;
+      setAds(prev => prev.map(a => a.id === id ? { ...a, image_url: url } : a));
+    } catch (e) {
+      alert('Image generation failed: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setGenImg(null);
+    }
+  };
+
+  const CAMP = {
+    social_media: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400',
+    clearance:    'bg-amber-50  dark:bg-amber-950/40  text-amber-600  dark:text-amber-400',
+    seasonal:     'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
+  };
+  const CAMP_LABEL = { social_media: 'Social Media', clearance: 'Clearance', seasonal: 'Seasonal' };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-48">
+      <Loader2 size={20} className="animate-spin text-indigo-400" />
+    </div>
+  );
+
+  if (ads.length === 0) return (
+    <div className={`${CARD2} p-12 flex flex-col items-center gap-3 text-center`}>
+      <Bot size={32} className="text-slate-300 dark:text-gray-600" />
+      <p className="text-sm font-medium text-slate-500 dark:text-gray-400">No AI-generated drafts yet</p>
+      <p className="text-xs text-slate-400 dark:text-gray-500 max-w-xs">
+        Go to the AI Assistant, ask for campaign suggestions, then say <span className="font-medium text-slate-600 dark:text-gray-300">&ldquo;generate ads for these&rdquo;</span> — drafts will appear here.
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400 dark:text-gray-500">{ads.length} draft{ads.length !== 1 ? 's' : ''} · generated by AI Advisor</p>
+        <button onClick={load} className="text-xs text-slate-400 hover:text-indigo-500 flex items-center gap-1 transition-colors">
+          <RefreshCw size={11}/> Refresh
+        </button>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {ads.map(ad => (
+          <div key={ad.id} className={`${CARD2} p-5 flex flex-col gap-3`}>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800 dark:text-gray-100 truncate">{ad.product_name}</p>
+                <p className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
+                  {new Date(ad.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  {' · '}{ad.platform}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CAMP[ad.campaign_type] || CAMP.social_media}`}>
+                  {CAMP_LABEL[ad.campaign_type] || 'Social Media'}
+                </span>
+                <button
+                  onClick={() => handleDelete(ad.id)}
+                  disabled={deleting === ad.id}
+                  className="p-1 text-slate-300 hover:text-red-400 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
+                >
+                  {deleting === ad.id ? <Loader2 size={12} className="animate-spin"/> : <Trash2 size={12}/>}
+                </button>
+              </div>
+            </div>
+
+            {/* Image area */}
+            {ad.image_url ? (
+              <img
+                src={ad.image_url}
+                alt={ad.product_name}
+                className="w-full h-40 object-cover rounded-xl border border-slate-100 dark:border-gray-800"
+              />
+            ) : (
+              <button
+                onClick={() => handleGenerateImage(ad.id)}
+                disabled={genImg === ad.id}
+                className="w-full h-40 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-700
+                  flex flex-col items-center justify-center gap-2
+                  text-slate-400 dark:text-gray-500
+                  hover:border-indigo-400 hover:text-indigo-500 dark:hover:border-indigo-600 dark:hover:text-indigo-400
+                  disabled:opacity-60 transition-colors"
+              >
+                {genImg === ad.id ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-indigo-500" />
+                    <p className="text-xs">Generating image…</p>
+                    <p className="text-[10px] opacity-60">This takes ~30 seconds</p>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon size={20} />
+                    <p className="text-xs font-medium">Generate Image</p>
+                  </>
+                )}
+              </button>
+            )}
+
+            <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed line-clamp-3 flex-1">{ad.caption}</p>
+
+            {ad.hashtags?.length > 0 && (
+              <p className="text-[10px] text-indigo-500 dark:text-indigo-400 line-clamp-1">
+                {ad.hashtags.slice(0, 6).join(' ')}
+              </p>
+            )}
+
+            <button
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              onClick={() => setScheduleAd(ad)}
+            >
+              <Send size={11}/> Schedule Post
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {scheduleAd && (
+        <DraftScheduleModal
+          ad={scheduleAd}
+          onClose={() => setScheduleAd(null)}
+          onScheduled={() => setScheduleAd(null)}
+        />
       )}
     </div>
   );

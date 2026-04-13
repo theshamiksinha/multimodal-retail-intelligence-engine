@@ -1,11 +1,30 @@
 import os
 import json
+import uuid
 import requests
 import base64
 import time
+from datetime import datetime
 from mistralai import Mistral
 import static_ffmpeg
 static_ffmpeg.add_paths()
+
+_DATA_DIR    = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
+_ARCHIVE_FILE = os.path.join(_DATA_DIR, "ad_archive.json")
+
+
+def _load_archive() -> list:
+    try:
+        with open(_ARCHIVE_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _save_archive(ads: list):
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    with open(_ARCHIVE_FILE, "w") as f:
+        json.dump(ads, f, indent=2)
 
 client = None
 
@@ -618,3 +637,102 @@ Rules:
         if isinstance(v, list):
             return v
     return []
+
+
+def extract_products_from_advisor_text(text: str) -> list[dict]:
+    """Use Mistral to pull product names out of an AI advisor response."""
+    c = get_client()
+    prompt = f"""The following is a retail advisor's response recommending products for marketing campaigns.
+Extract every distinct product name mentioned. Return ONLY a JSON array of objects, nothing else.
+
+Text:
+{text}
+
+Return format (JSON array, no wrapper):
+[{{"name": "Exact Product Name", "campaign_type": "social_media|clearance|seasonal"}}]
+
+Rules:
+- Use exact product names as written
+- If the context implies clearance/sale/expiry: campaign_type = "clearance"
+- If seasonal context: campaign_type = "seasonal"
+- Otherwise: campaign_type = "social_media"
+- Return empty array [] if no products found
+"""
+    try:
+        response = c.chat.complete(
+            model="mistral-small-latest",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+        )
+        raw = response.choices[0].message.content.strip()
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return parsed
+        for key in ("products", "items", "data", "result"):
+            if key in parsed and isinstance(parsed[key], list):
+                return parsed[key]
+        for v in parsed.values():
+            if isinstance(v, list):
+                return v
+    except Exception:
+        pass
+    return []
+
+
+def generate_ad_drafts_from_text(advisor_text: str, tone: str = "engaging", platform: str = "instagram") -> list[dict]:
+    """Extract products from advisor response and generate caption drafts. Saves to archive."""
+    products = extract_products_from_advisor_text(advisor_text)
+    if not products:
+        return []
+
+    ads = []
+    archive = _load_archive()
+
+    for p in products[:8]:  # cap at 8 to avoid runaway API calls
+        name = p.get("name", "").strip()
+        campaign_type = p.get("campaign_type", "social_media")
+        if not name:
+            continue
+        try:
+            result = generate_marketing_caption(
+                product_name=name,
+                product_description="",
+                campaign_type=campaign_type,
+                tone=tone,
+                platform=platform,
+                post_type="post",
+            )
+            ad = {
+                "id": str(uuid.uuid4()),
+                "created_at": datetime.utcnow().isoformat(),
+                "source": "ai_advisor",
+                "product_name": name,
+                "campaign_type": campaign_type,
+                "tone": tone,
+                "platform": platform,
+                "caption": result.get("caption", ""),
+                "hashtags": result.get("hashtags", []),
+                "image_url": None,
+                "status": "draft",
+            }
+            ads.append(ad)
+            archive.append(ad)
+        except Exception:
+            continue
+
+    _save_archive(archive)
+    return ads
+
+
+def get_ad_archive() -> list[dict]:
+    return _load_archive()
+
+
+def delete_ad_from_archive(ad_id: str) -> bool:
+    archive = _load_archive()
+    new_archive = [a for a in archive if a["id"] != ad_id]
+    if len(new_archive) == len(archive):
+        return False
+    _save_archive(new_archive)
+    return True

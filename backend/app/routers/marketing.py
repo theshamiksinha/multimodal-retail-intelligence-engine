@@ -660,6 +660,101 @@ class BufferPostRequest(BaseModel):
     scheduled_at: Optional[str] = None
 
 
+# ─── /archive ────────────────────────────────────────────────────────────────
+
+class ArchiveGenerateRequest(BaseModel):
+    advisor_text: str          # the AI advisor message to extract products from
+    tone: str = "engaging"
+    platform: str = "instagram"
+
+
+class ArchiveSaveRequest(BaseModel):
+    product_name: str
+    caption: str
+    hashtags: List[str] = []
+    image_url: Optional[str] = None
+    campaign_type: str = "social_media"
+    platform: str = "instagram"
+    tone: str = "engaging"
+
+
+@router.post("/archive/save")
+async def save_single_ad_to_archive(request: ArchiveSaveRequest):
+    """Save a single manually-created ad draft directly to the archive."""
+    import uuid as _uuid
+    from datetime import datetime as _dt
+    archive = marketing_service.get_ad_archive()
+    ad = {
+        "id": str(_uuid.uuid4()),
+        "product_name": request.product_name,
+        "caption": request.caption,
+        "hashtags": request.hashtags,
+        "image_url": request.image_url,
+        "campaign_type": request.campaign_type,
+        "platform": request.platform,
+        "tone": request.tone,
+        "created_at": _dt.utcnow().isoformat(),
+    }
+    archive.append(ad)
+    marketing_service._save_archive(archive)
+    return {"ad": ad}
+
+
+@router.post("/archive/generate")
+async def generate_archive_from_advisor(request: ArchiveGenerateRequest):
+    """Extract products from an AI advisor message and batch-generate ad drafts."""
+    try:
+        ads = marketing_service.generate_ad_drafts_from_text(
+            request.advisor_text, request.tone, request.platform
+        )
+        return {"ads": ads, "count": len(ads)}
+    except Exception as e:
+        raise HTTPException(500, f"Archive generation failed: {str(e)}")
+
+
+@router.get("/archive")
+async def get_archive():
+    """Return all saved ad drafts."""
+    return {"ads": marketing_service.get_ad_archive()}
+
+
+@router.delete("/archive/{ad_id}")
+async def delete_archive_ad(ad_id: str):
+    """Remove a specific ad draft from the archive."""
+    ok = marketing_service.delete_ad_from_archive(ad_id)
+    if not ok:
+        raise HTTPException(404, "Ad not found in archive")
+    return {"success": True}
+
+
+@router.post("/archive/{ad_id}/generate-image")
+async def generate_image_for_archive_ad(ad_id: str):
+    """Generate and attach an image to an archived ad draft."""
+    archive = marketing_service.get_ad_archive()
+    ad = next((a for a in archive if a["id"] == ad_id), None)
+    if not ad:
+        raise HTTPException(404, "Ad not found in archive")
+    try:
+        image_url = marketing_service.generate_marketing_image(
+            product_name=ad["product_name"],
+            campaign_type=ad.get("campaign_type", "social_media"),
+            post_type="post",
+        )
+        if not image_url:
+            raise HTTPException(500, "Image generation returned no result")
+        # Persist image_url back to archive
+        updated = [
+            {**a, "image_url": image_url} if a["id"] == ad_id else a
+            for a in archive
+        ]
+        marketing_service._save_archive(updated)
+        return {"image_url": image_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Image generation failed: {str(e)}")
+
+
 @router.post("/post-to-buffer")
 async def post_to_buffer(request: BufferPostRequest):
     try:
