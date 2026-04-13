@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import SplashScreen from './components/SplashScreen';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart3, Megaphone, Bot, Package,
-  ChevronLeft, ChevronRight, Sun, Moon,
+  ChevronLeft, ChevronRight, Sun, Moon, Store,
 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './pages/Dashboard';
@@ -36,8 +37,8 @@ function Sidebar({ open, setOpen }) {
 
       {/* Logo */}
       <div className="h-16 px-4 border-b border-slate-100 dark:border-gray-800 flex items-center gap-3 overflow-hidden">
-        <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
-          AI
+        <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0">
+          <Store size={15} />
         </div>
         {open && (
           <div className="overflow-hidden">
@@ -108,9 +109,12 @@ function Header() {
 
 function App() {
   const [open, setOpen] = useState(true);
+  const [splash, setSplash] = useState(true);
+  const hideSplash = useCallback(() => setSplash(false), []);
 
   return (
     <BrowserRouter>
+      {splash && <SplashScreen onDone={hideSplash} />}
       <div className="flex h-screen bg-slate-50 dark:bg-gray-950 overflow-hidden">
         <Sidebar open={open} setOpen={setOpen} />
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
