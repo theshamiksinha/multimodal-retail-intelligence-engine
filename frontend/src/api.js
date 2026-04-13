@@ -40,5 +40,6 @@ export const listFloorPlans = () =>
   api.get('/floorplan/sessions');
 export const deleteFloorPlan = (sessionId) =>
   api.delete(`/floorplan/session/${sessionId}`);
-
+export const generateReelVideo = (data) =>
+  axios.post('/api/marketing/generate-reel-video', data);
 export default api;

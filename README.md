@@ -30,6 +30,7 @@ Install everything with one command (from inside the `backend/` directory, with 
 
 ```bash
 pip install -r requirements.txt
+winget install -e --id Gyan.FFmpeg
 ```
 
 What gets installed and why:
