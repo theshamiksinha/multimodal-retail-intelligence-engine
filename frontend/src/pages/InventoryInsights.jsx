@@ -4,6 +4,7 @@ import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, F
 import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInventoryCsv, deleteInventoryFile, getSalesFileInfo, uploadSalesCsv, deleteSalesFile } from '../api';
 import { useTheme } from '../context/ThemeContext';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
+import OCRInventoryAdd from './OCRInventoryAdd';
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
@@ -255,10 +256,11 @@ export default function InventoryInsights() {
     <div className="space-y-5">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <VoiceInventoryAdd onProductsAdded={fetchData} />
-        <div className="flex flex-col gap-5">
-          <CsvInventoryUpload onUploaded={fetchData} />
-          <CsvSalesUpload onUploaded={fetchData} />
-        </div>
+        <OCRInventoryAdd onProductsAdded={fetchData} />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <CsvInventoryUpload onUploaded={fetchData} />
+        <CsvSalesUpload onUploaded={fetchData} />
       </div>
 
       {/* Summary cards */}

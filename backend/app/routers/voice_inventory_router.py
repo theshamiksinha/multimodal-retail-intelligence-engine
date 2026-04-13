@@ -210,7 +210,7 @@ async def voice_confirm_add(request: ConfirmAddRequest):
     sales_service._inventory_data = pd.concat(
         [df, pd.DataFrame(new_rows)], ignore_index=True
     )
-
+    sales_service.save_inventory_csv()
     return {
         "message": f"{len(new_rows)} product(s) successfully added to inventory.",
         "added": new_rows,
