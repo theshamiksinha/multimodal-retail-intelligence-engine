@@ -283,10 +283,26 @@ def upload_image_to_imgbb(image_data_url: str) -> str:
         raise ValueError(f"ImgBB upload failed ({resp.status_code}): {resp.text[:300]}")
 
     data = resp.json().get("data", {})
+    # Prefer display_url (direct image), fall back to url
     url = data.get("display_url") or data.get("url")
     if not url:
         raise ValueError(f"ImgBB returned no URL: {resp.text[:300]}")
-    return url if url.startswith("https") else "https://" + url.lstrip("http://")
+    # Ensure https
+    if not url.startswith("https"):
+        url = "https://" + url.lstrip("http://")
+    
+    # Verify the URL is actually accessible before returning it
+    try:
+        check = http_requests.head(url, timeout=10, allow_redirects=True)
+        if not check.ok:
+            # Fall back to the direct URL variant
+            alt_url = data.get("url") or data.get("display_url")
+            if alt_url and alt_url != url:
+                return alt_url if alt_url.startswith("https") else "https://" + alt_url.lstrip("http://")
+    except Exception:
+        pass
+    
+    return url
 
 
 # ─── Story caption overlay ────────────────────────────────────────────────────
@@ -366,19 +382,24 @@ def overlay_caption_on_story_image(image_data_url: str, caption: str) -> str:
 
 def normalize_image_for_buffer(image_data_url: str, post_type: str) -> str:
     """
-    Convert to RGB JPEG and normalize aspect ratio to common Instagram-safe shapes.
-    This reduces the chance of downstream 'problem with the media included' errors.
+    Convert to RGB JPEG and normalize aspect ratio to Instagram-safe shapes.
+    Instagram Feed: 1:1 square (1080x1080) is safest for API posting.
+    Instagram Story: 9:16 (1080x1920).
+    Square is more permissive than portrait for API-based posting.
     """
     try:
         b64data = image_data_url.split(",", 1)[1] if "," in image_data_url else image_data_url
         img = Image.open(io.BytesIO(base64.b64decode(b64data))).convert("RGB")
 
         if post_type == "story":
+            # 9:16 for stories
             target_size = (1080, 1920)
         else:
-            # Feed-friendly portrait format.
-            target_size = (1080, 1350)
+            # Use square (1:1) for feed posts - most compatible with Instagram API
+            # Portrait (4:5) can cause issues with some API integrations
+            target_size = (1080, 1080)
 
+        # Resize maintaining aspect ratio, then center on canvas
         img.thumbnail(target_size, Image.LANCZOS)
         canvas = Image.new("RGB", target_size, (255, 255, 255))
         x = (target_size[0] - img.size[0]) // 2
@@ -386,7 +407,14 @@ def normalize_image_for_buffer(image_data_url: str, post_type: str) -> str:
         canvas.paste(img, (x, y))
 
         out = io.BytesIO()
-        canvas.save(out, format="JPEG", quality=92, optimize=True)
+        canvas.save(out, format="JPEG", quality=90, optimize=True)
+        
+        # Check file size - Instagram has a 8MB limit
+        size_bytes = out.tell()
+        if size_bytes > 7 * 1024 * 1024:  # > 7MB, compress more
+            out = io.BytesIO()
+            canvas.save(out, format="JPEG", quality=75, optimize=True)
+        
         return f"data:image/jpeg;base64,{base64.b64encode(out.getvalue()).decode()}"
     except Exception as e:
         print(f"Image normalization failed: {e}")
@@ -438,40 +466,71 @@ def _graphql_request(query: str, variables: dict, access_token: str) -> dict:
     return data
 
 
-def _build_create_post_input(request, public_image_url: Optional[str] = None) -> dict:
+def _build_create_post_variables(request, public_image_url: Optional[str] = None) -> dict:
+    """
+    Build the variables dict for the createPost GraphQL mutation.
+    Uses proper enum values (no quotes in GraphQL variables = passed as strings
+    which GraphQL coerces automatically when using variables).
+    """
     channel_id = _resolve_channel_id(request.platform)
-
-    create_input = {
-        "text": request.caption,
-        "channelId": channel_id,
-        "schedulingType": "automatic",
-        "mode": "customScheduled" if request.scheduled_at else "shareNow",
-    }
-
-    if request.scheduled_at:
-        # Buffer docs use ISO-8601 timestamps directly for dueAt.
-        create_input["dueAt"] = request.scheduled_at
-
     platform = (request.platform or "").lower()
     post_type = (request.post_type or "post").lower()
 
+    # Determine scheduling mode and dueAt
+    has_schedule = bool(request.scheduled_at)
+    
+    create_input = {
+        "text": request.caption,
+        "channelId": channel_id,
+        # schedulingType: automatic means Buffer publishes automatically (not notification)
+        "schedulingType": "automatic",
+        # mode: addToQueue for immediate, customScheduled for future
+        "mode": "customScheduled" if has_schedule else "shareNow",
+    }
+
+    if has_schedule:
+        # Ensure the scheduled_at is a valid future ISO timestamp
+        # Add a small buffer (30s) to account for processing time
+        try:
+            dt = datetime.datetime.fromisoformat(request.scheduled_at.replace("Z", "+00:00"))
+            now = datetime.datetime.now(datetime.timezone.utc)
+            # If the scheduled time is within 2 minutes of now or in the past, 
+            # use addToQueue instead (post immediately via Buffer's queue)
+            if (dt - now).total_seconds() < 120:
+                create_input["mode"] = "addToQueue"
+                del create_input["mode"]  # reset and don't set dueAt
+                create_input["mode"] = "addToQueue"
+            else:
+                create_input["dueAt"] = request.scheduled_at
+        except Exception:
+            create_input["dueAt"] = request.scheduled_at
+
+    # Platform-specific metadata
+    # Per Buffer API docs, metadata is PostInputMetaData with platform-specific keys
     if platform == "instagram":
+        ig_post_type = post_type if post_type in {"post", "story", "reel"} else "post"
         create_input["metadata"] = {
             "instagram": {
-                "type": post_type if post_type in {"post", "story", "reel"} else "post",
+                "type": ig_post_type,
                 "shouldShareToFeed": post_type != "story",
             }
         }
 
+    # Assets: images or video
     if public_image_url:
-        create_input["assets"] = {"images": [{"url": public_image_url}]}
+        create_input["assets"] = {
+            "images": [{"url": public_image_url}]
+        }
     elif request.video_url:
-        create_input["assets"] = {"videos": [{"url": request.video_url}]}
+        create_input["assets"] = {
+            "videos": [{"url": request.video_url}]
+        }
 
-    return create_input
+    return {"input": create_input}
 
 
 def _create_post_via_graphql(*, request, access_token: str, public_image_url: Optional[str] = None) -> dict:
+    # Use variables (not inline literals) so GraphQL enum coercion works correctly
     mutation = """
     mutation CreatePost($input: CreatePostInput!) {
       createPost(input: $input) {
@@ -481,6 +540,7 @@ def _create_post_via_graphql(*, request, access_token: str, public_image_url: Op
             id
             text
             dueAt
+            status
             assets {
               id
               mimeType
@@ -494,8 +554,10 @@ def _create_post_via_graphql(*, request, access_token: str, public_image_url: Op
     }
     """
 
-    payload = _build_create_post_input(request, public_image_url=public_image_url)
-    data = _graphql_request(mutation, {"input": payload}, access_token)
+    variables = _build_create_post_variables(request, public_image_url=public_image_url)
+    print(f"[Buffer] Posting with variables: {json.dumps(variables, indent=2)}")
+    
+    data = _graphql_request(mutation, variables, access_token)
 
     result = (data.get("data") or {}).get("createPost") or {}
     typename = result.get("__typename")
@@ -529,6 +591,7 @@ async def _post_to_buffer_core(request, access_token: str) -> dict:
         img_to_upload = request.image_data_url
         if request.post_type == "story":
             img_to_upload = overlay_caption_on_story_image(img_to_upload, request.caption)
+        # Always normalize to safe dimensions/format
         img_to_upload = normalize_image_for_buffer(img_to_upload, request.post_type)
         image_url = upload_image_to_imgbb(img_to_upload)
         print(f"[Buffer] Image hosted at: {image_url}")
