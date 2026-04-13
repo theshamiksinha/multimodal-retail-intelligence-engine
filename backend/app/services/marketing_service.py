@@ -50,7 +50,7 @@ def generate_marketing_caption(
 
     campaign_context = {
         "social_media": "This is a regular social media promotional post.",
-        "clearance": "This is a clearance/sale campaign. Emphasize urgency and discounts.",
+        "clearance": "This is a special offer / clearance campaign. Highlight value for money and great deals. Do NOT mention expiry dates, days remaining, stock counts, or any inventory details — just make it sound like an unmissable offer.",
         "seasonal": "This is a seasonal campaign. Connect the product to the current season.",
     }
 
@@ -114,7 +114,7 @@ def generate_voiceover_line(
 
     campaign_hints = {
         "social_media": "promotional",
-        "clearance": "sale-focused with urgency",
+        "clearance": "special offer, great deal, value-focused — no mention of expiry or stock counts",
         "seasonal": "seasonal and timely",
     }
 

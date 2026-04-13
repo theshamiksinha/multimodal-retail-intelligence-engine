@@ -4,7 +4,7 @@ import {
   Instagram, Twitter, Film, Image as ImageIcon,
   BookOpen, CalendarDays, ChevronLeft, ChevronRight,
   Trash2, Play, AlertCircle, Plus, Music, RefreshCw, Mic,
-  Zap, X, ChevronDown, ChevronUp, RotateCcw
+  Zap, X, ChevronDown, ChevronUp, RotateCcw, Bot, TrendingUp, AlertTriangle
 } from 'lucide-react';
 import { generateMarketing, postToBuffer } from '../api';
 import axios from 'axios';
@@ -13,8 +13,9 @@ const generateReelVideo     = (d) => axios.post('/api/marketing/generate-reel-vi
 const addMusicToReel = (d) =>
   axios.post('/api/marketing/add-music-to-reel', d, { timeout: 240000 });
 const generateVoiceoverLine = (d) => axios.post('/api/marketing/generate-voiceover-line', d);
-const fetchTopProducts      = ()  => axios.get('/api/marketing/top-products?limit=30');
-const runAutoCampaign       = (d) => axios.post('/api/marketing/auto-campaign', d);
+const fetchTopProducts       = ()  => axios.get('/api/marketing/top-products?limit=30');
+const fetchExpiringProducts  = ()  => axios.get('/api/marketing/expiring-products?limit=30');
+const runAutoCampaign        = (d) => axios.post('/api/marketing/auto-campaign', d);
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const INPUT = `w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-gray-700
@@ -548,6 +549,124 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
   );
 }
 
+// ─── AI Suggest Panel ────────────────────────────────────────────────────────
+function AISuggestPanel({ onSelect }) {
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [fetched, setFetched] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const load = async () => {
+    if (fetched) { setOpen(true); return; }
+    setLoading(true); setOpen(true);
+    try {
+      const [topRes, expRes] = await Promise.allSettled([
+        fetchTopProducts(),
+        fetchExpiringProducts(),
+      ]);
+      const top = (topRes.status === 'fulfilled' ? topRes.value.data.products || [] : [])
+        .slice(0, 3)
+        .map(p => ({ ...p, _tag: 'top', _campaign: 'social_media' }));
+      const exp = (expRes.status === 'fulfilled' ? expRes.value.data.products || [] : [])
+        .slice(0, 3)
+        .map(p => ({ ...p, _tag: 'expiring', _campaign: 'clearance' }));
+      // Merge — deduplicate by name
+      const seen = new Set();
+      const merged = [];
+      for (const p of [...exp, ...top]) {
+        if (!seen.has(p.name)) { seen.add(p.name); merged.push(p); }
+      }
+      setSuggestions(merged.slice(0, 5));
+      setFetched(true);
+    } catch { /* silently ignore */ }
+    finally { setLoading(false); }
+  };
+
+  const pick = (p) => {
+    onSelect({
+      name: p.name,
+      // Don't pass raw inventory strings (stock counts, value at risk, days left)
+      // into the ad description — let the LLM work from the product name alone.
+      description: p._tag === 'expiring' ? '' : (p.description || ''),
+      campaign: p._campaign,
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={load}
+        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+      >
+        <Bot size={11}/> AI Suggest
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-5 z-30 w-72 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Suggested Products</span>
+            <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={12}/></button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-5 text-xs text-slate-400">
+              <Loader2 size={13} className="animate-spin"/> Loading suggestions…
+            </div>
+          ) : suggestions.length === 0 ? (
+            <div className="px-3 py-4 text-xs text-slate-400 text-center">
+              No data yet — upload inventory or sales CSV first.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-gray-800">
+              {suggestions.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => pick(p)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-800 dark:text-gray-100 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {p.name}
+                    </p>
+                    <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      p._tag === 'expiring'
+                        ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
+                        : 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400'
+                    }`}>
+                      {p._tag === 'expiring'
+                        ? (p.days_to_expiry != null ? `${p.days_to_expiry}d left` : 'Clearance')
+                        : 'Top seller'}
+                    </span>
+                  </div>
+                  {p.description && (
+                    <p className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5 line-clamp-1">{p.description}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="px-3 py-1.5 border-t border-slate-100 dark:border-gray-800 text-[9px] text-slate-300 dark:text-gray-600">
+            Click to auto-fill · Expiring sorted by urgency
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Auto-Campaign Modal ──────────────────────────────────────────────────────
 function AutoCampaignModal({ onClose, onComplete }) {
   const [step, setStep] = useState('config');
@@ -558,23 +677,29 @@ function AutoCampaignModal({ onClose, onComplete }) {
     else { if (ds < rangeStart) { setRangeEnd(rangeStart); setRangeStart(ds); } else setRangeEnd(ds); }
   };
 
-  const [postTime, setPostTime]       = useState('10:00');
-  const [platform, setPlatform]       = useState('instagram');
-  const [postType, setPostType]       = useState('post');
+  const [postTime, setPostTime]         = useState('10:00');
+  const [platform, setPlatform]         = useState('instagram');
+  const [postType, setPostType]         = useState('post');
   const [campaignType, setCampaignType] = useState('social_media');
-  const [tone, setTone]               = useState('engaging');
-  const [products, setProducts]       = useState([]);
-  const [prodLoading, setProdLoading] = useState(false);
-  const [prodError, setProdError]     = useState(null);
-  const [assignment, setAssignment]   = useState({});
-  const [progress, setProgress]       = useState([]);
-  const [running, setRunning]         = useState(false);
+  const [tone, setTone]                 = useState('engaging');
+  const [productSource, setProductSource] = useState('top');  // 'top' | 'expiring'
+  const [products, setProducts]         = useState([]);
+  const [prodLoading, setProdLoading]   = useState(false);
+  const [prodError, setProdError]       = useState(null);
+  const [assignment, setAssignment]     = useState({});
+  const [progress, setProgress]         = useState([]);
+  const [running, setRunning]           = useState(false);
 
   const selectedDates = rangeStart && rangeEnd ? dateRange(rangeStart, rangeEnd) : rangeStart ? [rangeStart] : [];
 
   const loadProducts = async () => {
     setProdLoading(true); setProdError(null);
-    try { const r = await fetchTopProducts(); setProducts(r.data.products || []); }
+    try {
+      const r = productSource === 'expiring'
+        ? await fetchExpiringProducts()
+        : await fetchTopProducts();
+      setProducts(r.data.products || []);
+    }
     catch(e) { setProdError('Could not load products: ' + normalizeError(e)); }
     finally { setProdLoading(false); }
   };
@@ -731,6 +856,41 @@ function AutoCampaignModal({ onClose, onComplete }) {
                   </select>
                 </div>
               </div>
+
+              {/* Product source selector */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Product Source</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setProductSource('top')}
+                    className={`text-left px-4 py-3 rounded-xl border transition-all text-sm ${
+                      productSource === 'top'
+                        ? 'border-violet-500 bg-violet-50 dark:bg-violet-600/20 text-violet-700 dark:text-violet-300'
+                        : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-violet-300'
+                    }`}
+                  >
+                    <p className="font-semibold text-sm">Top Products</p>
+                    <p className="text-xs mt-0.5 opacity-70">Best sellers by revenue</p>
+                  </button>
+                  <button
+                    onClick={() => setProductSource('expiring')}
+                    className={`text-left px-4 py-3 rounded-xl border transition-all text-sm ${
+                      productSource === 'expiring'
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-600/20 text-amber-700 dark:text-amber-300'
+                        : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-amber-300'
+                    }`}
+                  >
+                    <p className="font-semibold text-sm">Expiring Soon</p>
+                    <p className="text-xs mt-0.5 opacity-70">Ranked by urgency — days left, stock & value</p>
+                  </button>
+                </div>
+                {productSource === 'expiring' && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                    Products are scored by: value at risk (price × stock) ÷ days remaining. Highest urgency goes first.
+                  </p>
+                )}
+              </div>
+
               <button onClick={handleConfigure} disabled={selectedDates.length===0||prodLoading}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-violet-600 text-white rounded-lg text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors">
                 {prodLoading?<Loader2 size={15} className="animate-spin"/>:<Zap size={15}/>}
@@ -752,12 +912,16 @@ function AutoCampaignModal({ onClose, onComplete }) {
                 <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-gray-700 text-slate-500 flex items-center justify-center font-bold text-[10px]">3</span>
                 <span>Run</span>
               </div>
-              <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl text-xs text-violet-700 dark:text-violet-300">
-                <p className="font-semibold mb-0.5">🔄 Products are auto-assigned to avoid repeats.</p>
-                <p className="text-violet-600/80">You can override any day's product using the dropdowns below.</p>
+              <div className={`p-3 rounded-xl text-xs ${productSource === 'expiring' ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300' : 'bg-violet-50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-300'}`}>
+                <p className="font-semibold mb-0.5">
+                  {productSource === 'expiring' ? '⚠️ Clearance mode — ordered by urgency.' : '🔄 Products are auto-assigned to avoid repeats.'}
+                </p>
+                <p className="opacity-80">You can override any day&apos;s product using the dropdowns below.</p>
               </div>
               {products.length === 0 && (
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-xl text-xs text-amber-700">No products found. A generic product name will be used.</div>
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-xl text-xs text-amber-700">
+                  {productSource === 'expiring' ? 'No expiring inventory found. Upload an inventory CSV first.' : 'No products found. A generic product name will be used.'}
+                </div>
               )}
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {selectedDates.map(d => {
@@ -773,7 +937,14 @@ function AutoCampaignModal({ onClose, onComplete }) {
                       <div className="flex-1">
                         {products.length > 0 ? (
                           <select value={assignedIdx} onChange={e=>setAssignment(prev=>({...prev,[d]:+e.target.value}))} className={`${INPUT} py-1.5 text-xs`}>
-                            {products.map((p,i)=><option key={i} value={i}>{p.name}</option>)}
+                            {products.map((p,i)=>(
+                              <option key={i} value={i}>
+                                {p.name}
+                                {productSource === 'expiring' && p.days_to_expiry != null
+                                  ? ` — ${p.days_to_expiry}d left, ${p.current_stock} units`
+                                  : ''}
+                              </option>
+                            ))}
                           </select>
                         ) : <p className="text-xs text-slate-400 italic">No products loaded</p>}
                       </div>
@@ -1156,7 +1327,14 @@ export default function MarketingGenerator() {
                   </div>
                 )}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Product Name <span className="text-red-400">*</span></label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Product Name <span className="text-red-400">*</span></label>
+                    <AISuggestPanel onSelect={({ name, description, campaign }) => {
+                      set('product_name', name);
+                      set('product_description', description);
+                      set('campaign_type', campaign);
+                    }}/>
+                  </div>
                   <input type="text" value={form.product_name} onChange={e=>set('product_name',e.target.value)} placeholder="e.g. Archi POP's Chips 4-Pack" className={INPUT}/>
                 </div>
                 <div className="space-y-1">

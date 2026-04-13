@@ -164,6 +164,51 @@ async def get_top_products(limit: int = 20):
         raise HTTPException(500, f"Failed to fetch top products: {str(e)}")
 
 
+# ─── /expiring-products ──────────────────────────────────────────────────────
+
+@router.get("/expiring-products")
+async def get_expiring_products(limit: int = 30):
+    """Return inventory products scored by clearance urgency for auto-campaign planning.
+
+    Urgency score = (unit_price * current_stock) / max(days_to_expiry, 1)
+    — high value at risk + imminent expiry = post it first.
+    Products with no expiry date are included last (scored by stock value only).
+    """
+    inventory = sales_service.get_inventory_status()
+    if not inventory:
+        return {"products": []}
+
+    items = inventory.get("all_items", [])
+    scored = []
+    for item in items:
+        price = item.get("unit_price") or 0
+        stock = item.get("current_stock") or 0
+        days  = item.get("days_to_expiry")
+        value = price * stock
+        if days is not None:
+            urgency = value / max(days, 1)
+            has_expiry = True
+        else:
+            urgency = value / 1000  # low priority compared to expiring items
+            has_expiry = False
+        scored.append({
+            "name": item.get("product_name", ""),
+            "description": (
+                f"{stock} units in stock"
+                + (f", expires in {days} day{'s' if days != 1 else ''}" if has_expiry else "")
+                + f" — value at risk: ${value:.0f}"
+            ),
+            "days_to_expiry": days,
+            "current_stock": stock,
+            "unit_price": price,
+            "urgency_score": round(urgency, 2),
+            "has_expiry": has_expiry,
+        })
+
+    scored.sort(key=lambda x: x["urgency_score"], reverse=True)
+    return {"products": scored[:limit]}
+
+
 # ─── /auto-campaign ──────────────────────────────────────────────────────────
 
 class AutoCampaignDayRequest(BaseModel):
