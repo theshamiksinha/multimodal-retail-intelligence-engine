@@ -21,10 +21,10 @@ const SECTIONS = [
     icon: DollarSign,
     label: 'Monthly Revenue',
     options: [
-      { value: 'under_10k',  label: 'Under $10K',    sub: 'Early stage / small store' },
-      { value: '10k_50k',    label: '$10K – $50K',   sub: 'Growing retailer' },
-      { value: '50k_200k',   label: '$50K – $200K',  sub: 'Established mid-size store' },
-      { value: 'over_200k',  label: '$200K+',         sub: 'Large retail operation' },
+      { value: 'under_10k',  label: 'Under ₹10K',    sub: 'Early stage / small store' },
+      { value: '10k_50k',    label: '₹10K – ₹50K',   sub: 'Growing retailer' },
+      { value: '50k_200k',   label: '₹50K – ₹200K',  sub: 'Established mid-size store' },
+      { value: 'over_200k',  label: '₹200K+',         sub: 'Large retail operation' },
     ],
   },
   {

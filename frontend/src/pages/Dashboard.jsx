@@ -106,7 +106,7 @@ export default function Dashboard() {
     {
       label: 'Total Revenue',
       sub: '90-day window',
-      value: sales ? '$' + Number(sales.total_revenue).toLocaleString() : '—',
+      value: sales ? '₹' + Number(sales.total_revenue).toLocaleString() : '—',
       icon: DollarSign,
       color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-50 dark:bg-green-950/40',

@@ -218,7 +218,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
           <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
             Press the microphone and say something like:<br />
             <span className="italic text-slate-500 dark:text-gray-400">
-              "Add 50 units of Greek Yogurt at $3.99, expires in 5 days, and 30 units of Sparkling Water at $5.49"
+              "Add 50 units of Greek Yogurt at ₹3.99, expires in 5 days, and 30 units of Sparkling Water at ₹5.49"
             </span>
           </p>
           <button
@@ -304,9 +304,9 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
                     options={CATEGORIES} />
                   <Field label="Stock (units)" value={p.current_stock} type="number"
                     onChange={v => updateProduct(p._id, 'current_stock', v)} />
-                  <Field label="Unit Price ($)" value={p.unit_price} type="number"
-                    onChange={v => updateProduct(p._id, 'unit_price', v)} />
-                  <Field label="Unit Cost ($)" value={p.unit_cost ?? ''} type="number"
+                  <Field label="Unit Price (₹)" value={p.unit_price} type="number"
+                    onChange={v => updateProduct(p._id, 'unit_price', v)} step="0.01" />
+                  <Field label="Unit Cost (₹)" value={p.unit_cost ?? ''} type="number"
                     onChange={v => updateProduct(p._id, 'unit_cost', v)} />
                   <Field label="Days to Expiry" value={p.days_to_expiry ?? ''} type="number"
                     onChange={v => updateProduct(p._id, 'days_to_expiry', v)} />
