@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw } from 'lucide-react';
-import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus } from '../api';
+import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw, Wind } from 'lucide-react';
+import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus, getFloorPlanTrajectories } from '../api';
 import { useTheme } from '../context/ThemeContext';
 import { SETUP_KEY } from '../components/SetupWizard';
 
@@ -22,6 +22,9 @@ export default function Dashboard() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
   const [recalibrating, setRecalibrating] = useState(false);
+  const [trajectories, setTrajectories] = useState(null);
+  const [showHeatmap,  setShowHeatmap]  = useState(true);
+  const [showFlow,     setShowFlow]     = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -39,6 +42,14 @@ export default function Dashboard() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedFloor?.session_id || selectedFloor.status !== 'done') return;
+    setTrajectories(null);
+    getFloorPlanTrajectories(selectedFloor.session_id)
+      .then(r => setTrajectories(r.data))
+      .catch(() => setTrajectories(null));
+  }, [selectedFloor?.session_id]);
 
   const recalibrate = async () => {
     if (!selectedFloor || recalibrating) return;
@@ -162,10 +173,12 @@ export default function Dashboard() {
       {/* ── Heatmap + Revenue trend ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* Heatmap */}
+        {/* Store Activity Map */}
         <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">Store Heatmap</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-1.5">
+              <Wind size={14} className="text-indigo-400"/> Store Activity Map
+            </h2>
             <div className="flex items-center gap-2">
               {floors.length > 1 && (
                 <div className="relative">
@@ -197,6 +210,39 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Layer toggles */}
+          {selectedFloor?.status === 'done' && (
+            <div className="flex items-center gap-4 mb-3">
+              {[
+                { label: 'Heatmap',      checked: showHeatmap, set: setShowHeatmap, color: '#f59e0b' },
+                { label: 'Traffic Flow', checked: showFlow,    set: setShowFlow,    color: '#6366f1' },
+              ].map(l => (
+                <label key={l.label} className="flex items-center gap-1.5 cursor-pointer select-none group">
+                  <span className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                    l.checked
+                      ? 'border-transparent'
+                      : 'border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800'
+                  }`}
+                    style={l.checked ? { background: l.color } : {}}
+                    onClick={() => l.set(p => !p)}
+                  >
+                    {l.checked && (
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span
+                    className="text-xs text-slate-500 dark:text-gray-400 group-hover:text-slate-700 dark:group-hover:text-gray-200 transition-colors"
+                    onClick={() => l.set(p => !p)}
+                  >
+                    {l.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+
           {floors.length === 0 ? (
             <div className="h-56 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-700 flex flex-col items-center justify-center gap-2">
               <MapPin size={24} className="text-slate-300 dark:text-gray-600" />
@@ -208,32 +254,14 @@ export default function Dashboard() {
               <div className="animate-spin h-6 w-6 border-[3px] border-indigo-500 border-t-transparent rounded-full" />
               <p className="text-sm text-slate-500 dark:text-gray-400">Running CV pipeline…</p>
             </div>
-          ) : selectedFloor?.heatmap_url ? (
-            <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-xl" />
-          ) : selectedFloor?.floor_plan_url ? (
-            <div className="relative">
-              <img src={selectedFloor.floor_plan_url} alt="Floor plan" className="w-full rounded-xl opacity-60" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                {selectedFloor.cameras?.some(c => c.has_video) ? (
-                  <button
-                    onClick={recalibrate}
-                    disabled={recalibrating}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium shadow-lg hover:bg-indigo-700 disabled:opacity-60"
-                  >
-                    <RefreshCw size={13} className={recalibrating ? 'animate-spin' : ''} />
-                    Generate Heatmap
-                  </button>
-                ) : (
-                  <Link to="/analytics" className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium shadow-lg hover:bg-indigo-700">
-                    Upload footage & generate heatmap
-                  </Link>
-                )}
-              </div>
-            </div>
           ) : (
-            <div className="h-56 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
-              No image available
-            </div>
+            <TrafficFlowCanvas
+              floorPlanUrl={selectedFloor?.floor_plan_url}
+              heatmapUrl={selectedFloor?.heatmap_url}
+              trajectories={trajectories}
+              showHeatmap={showHeatmap}
+              showFlow={showFlow}
+            />
           )}
         </div>
 
@@ -323,5 +351,220 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Traffic Flow Canvas ───────────────────────────────────────────────────────
+// Computes an average flow field from all customer trajectories and animates
+// a "wind map" style visualization — arrows + flowing droplets, auto-playing.
+
+const GRID_W = 9;
+const GRID_H = 6;
+
+function computeFlowField(customers) {
+  // grid[gy][gx] = { dx, dy, count }
+  const grid = Array.from({ length: GRID_H }, () =>
+    Array.from({ length: GRID_W }, () => ({ dx: 0, dy: 0, count: 0 }))
+  );
+
+  for (const customer of customers) {
+    const path = customer.path;
+    for (let i = 0; i < path.length - 1; i++) {
+      const p1 = path[i], p2 = path[i + 1];
+      const dx = p2.x_pct - p1.x_pct;
+      const dy = p2.y_pct - p1.y_pct;
+      if (Math.hypot(dx, dy) < 0.3) continue; // ignore jitter
+
+      const gx = Math.min(GRID_W - 1, Math.floor(p1.x_pct / 100 * GRID_W));
+      const gy = Math.min(GRID_H - 1, Math.floor(p1.y_pct / 100 * GRID_H));
+      grid[gy][gx].dx    += dx;
+      grid[gy][gx].dy    += dy;
+      grid[gy][gx].count += 1;
+    }
+  }
+
+  const cells = [];
+  let maxCount = 1;
+  for (let gy = 0; gy < GRID_H; gy++)
+    for (let gx = 0; gx < GRID_W; gx++)
+      if (grid[gy][gx].count > maxCount) maxCount = grid[gy][gx].count;
+
+  for (let gy = 0; gy < GRID_H; gy++) {
+    for (let gx = 0; gx < GRID_W; gx++) {
+      const { dx, dy, count } = grid[gy][gx];
+      if (count === 0) continue;
+      const mag = Math.hypot(dx, dy);
+      cells.push({
+        gx, gy,
+        cx: (gx + 0.5) / GRID_W,   // normalised cell centre (0-1)
+        cy: (gy + 0.5) / GRID_H,
+        ndx: dx / mag,              // unit direction
+        ndy: dy / mag,
+        strength: Math.min(1, count / maxCount),
+      });
+    }
+  }
+  return cells;
+}
+
+function TrafficFlowCanvas({ floorPlanUrl, heatmapUrl, trajectories, showHeatmap, showFlow }) {
+  const canvasRef        = useRef(null);
+  const animRef          = useRef(null);
+  const imgRef           = useRef(null);
+  const imgReady         = useRef(false);
+  const heatmapImgRef    = useRef(null);
+  const heatmapImgReady  = useRef(false);
+  const tRef             = useRef(0);
+
+  const flow = useMemo(() =>
+    trajectories?.customers?.length ? computeFlowField(trajectories.customers) : [],
+  [trajectories]);
+
+  // Load floor plan image (base layer)
+  useEffect(() => {
+    imgReady.current = false;
+    imgRef.current = null;
+    if (!floorPlanUrl) return;
+    const img = new Image();
+    img.src = floorPlanUrl;
+    img.onload = () => { imgRef.current = img; imgReady.current = true; };
+  }, [floorPlanUrl]);
+
+  // Load heatmap image (overlay layer)
+  useEffect(() => {
+    heatmapImgReady.current = false;
+    heatmapImgRef.current = null;
+    if (!heatmapUrl) return;
+    const img = new Image();
+    img.src = heatmapUrl;
+    img.onload = () => { heatmapImgRef.current = img; heatmapImgReady.current = true; };
+  }, [heatmapUrl]);
+
+  // Animation loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const draw = (ts) => {
+      tRef.current = ts / 1000;
+      const t = tRef.current;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // ── Base layer: floor plan (always drawn) ──
+      if (imgReady.current && imgRef.current) {
+        ctx.globalAlpha = 1;
+        ctx.drawImage(imgRef.current, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      // ── Heatmap overlay (conditional) ──
+      if (showHeatmap && heatmapImgReady.current && heatmapImgRef.current) {
+        ctx.globalAlpha = 0.92;
+        ctx.drawImage(heatmapImgRef.current, 0, 0, W, H);
+        ctx.globalAlpha = 1;
+      } else if (!showHeatmap && imgReady.current) {
+        // slight dark overlay so arrows still stand out against plain floor plan
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      // Reset alpha
+      ctx.globalAlpha = 1;
+
+      if (!showFlow || !flow.length) {
+        if (!flow.length) {
+          ctx.font = '11px system-ui';
+          ctx.fillStyle = 'rgba(148,163,184,0.8)';
+          ctx.textAlign = 'center';
+          ctx.fillText('Reprocess to enable traffic flow', W / 2, H - 12);
+        }
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      const cellW = W / GRID_W;
+      const cellH = H / GRID_H;
+
+      for (const f of flow) {
+        const cx  = f.cx * W;
+        const cy  = f.cy * H;
+        const arrowHalf = Math.min(cellW, cellH) * 0.38 * (0.5 + f.strength * 0.5);
+        const sx  = cx - f.ndx * arrowHalf;
+        const sy  = cy - f.ndy * arrowHalf;
+        const ex  = cx + f.ndx * arrowHalf;
+        const ey  = cy + f.ndy * arrowHalf;
+        const shaftAlpha = 0.72 + f.strength * 0.25;
+        const ang        = Math.atan2(f.ndy, f.ndx);
+        const headLen    = 8 * f.strength + 5;
+
+        ctx.lineCap  = 'round';
+        ctx.lineJoin = 'round';
+
+        // Soft drop-shadow separates from any heatmap color without harsh edges
+        ctx.shadowColor   = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur    = 5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1.5;
+
+        // ── Arrow shaft ──
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,255,255,${shaftAlpha})`;
+        ctx.lineWidth   = 2;
+        ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+
+        // ── Arrowhead ──
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${shaftAlpha})`;
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(ang - Math.PI / 5.5),
+                   ey - headLen * Math.sin(ang - Math.PI / 5.5));
+        ctx.lineTo(ex - headLen * Math.cos(ang + Math.PI / 5.5),
+                   ey - headLen * Math.sin(ang + Math.PI / 5.5));
+        ctx.closePath(); ctx.fill();
+
+        // Reset shadow before droplet
+        ctx.shadowColor   = 'transparent';
+        ctx.shadowBlur    = 0;
+        ctx.shadowOffsetY = 0;
+
+        // ── Animated droplet ──
+        const phase    = ((f.gx * 1.618 + f.gy * 2.414) % 1);
+        const progress = ((t * 0.45 + phase) % 1);
+        const dotX     = sx + (ex - sx) * progress;
+        const dotY     = sy + (ey - sy) * progress;
+        const dotAlpha = Math.sin(progress * Math.PI) * (0.5 + f.strength * 0.5);
+        const dotR     = 3.5 * f.strength + 2;
+
+        // Glow via shadow on the dot itself
+        ctx.shadowColor = `rgba(255,255,255,${dotAlpha * 0.6})`;
+        ctx.shadowBlur  = 8;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${dotAlpha})`;
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur  = 0;
+      }
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    animRef.current = requestAnimationFrame(draw);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, [flow, floorPlanUrl, heatmapUrl, showHeatmap, showFlow]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={700}
+      height={400}
+      className="w-full rounded-xl"
+    />
   );
 }

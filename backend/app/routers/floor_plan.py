@@ -121,6 +121,17 @@ async def get_status(session_id: str):
         raise HTTPException(404, str(e))
 
 
+@router.get("/session/{session_id}/trajectories")
+async def get_trajectories(session_id: str):
+    """Return customer journey trajectories for a processed session."""
+    data = floor_plan_service.get_trajectories(session_id)
+    if data is None:
+        raise HTTPException(404, "No trajectory data — session not found or not yet processed")
+    if not data:
+        raise HTTPException(404, "No trajectory data — reprocess the session to generate journeys")
+    return data
+
+
 @router.get("/sessions")
 async def list_sessions():
     return {"sessions": floor_plan_service.list_sessions()}

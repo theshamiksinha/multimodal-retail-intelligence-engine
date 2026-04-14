@@ -46,25 +46,52 @@ def gather_context(state: AdvisorState) -> AdvisorState:
             if s["status"] == "done" and s.get("zones")
         ]
         if done_floors:
-            context_parts.append("\n=== IN-STORE ANALYTICS ===")
+            context_parts.append(
+                "\n=== HEATMAP & CAMERA ANALYTICS ===\n"
+                "NOTE: The following data is extracted directly from the store heatmap generated "
+                "by analysing CCTV footage. Density scores (0–1) represent how much customer "
+                "activity was recorded in each zone — 1.0 = highest traffic. "
+                "When the user asks about 'the heatmap', 'traffic', 'footfall', or 'camera data', "
+                "answer using THIS data — you have full access to it."
+            )
             for floor in done_floors:
-                context_parts.append(f"\nFloor: {floor['floor_name']}")
-                context_parts.append(f"  Total customers detected: {floor['total_people']}")
+                context_parts.append(f"\nFloor plan: '{floor['floor_name']}'")
+                context_parts.append(f"  Peak simultaneous customers detected: {floor['total_people']}")
+                context_parts.append("  Zone breakdown (from heatmap analysis):")
                 for zone in floor["zones"]:
                     context_parts.append(
-                        f"  - {zone['name']}: {zone['level']} "
-                        f"(density score: {zone['density_score']}, people: {zone['people_count']})"
+                        f"    • {zone['name']}: {zone['level']} "
+                        f"— density {zone['density_score']}, {zone['people_count']} people"
                     )
-                    context_parts.append(f"    → {zone['description']}")
+                    context_parts.append(f"      {zone['description']}")
+
+                # Include trajectory summary if available
+                traj = floor_plan_service.get_trajectories(floor["session_id"])
+                if traj and traj.get("customers"):
+                    n = len(traj["customers"])
+                    dur = traj.get("duration", 0)
+                    context_parts.append(
+                        f"\n  Customer journey tracking (from same footage):\n"
+                        f"    {n} individual customer path(s) tracked over {round(dur)}s of footage."
+                    )
+                    # Brief per-customer summary
+                    for c in traj["customers"][:6]:  # cap at 6 to keep context short
+                        path = c["path"]
+                        visit = round(path[-1]["t"] - path[0]["t"])
+                        cams  = ", ".join(c.get("camera_ids", []))
+                        context_parts.append(
+                            f"    • {c['customer_id']}: spent ~{visit}s in store"
+                            + (f", crossed cameras: {cams}" if cams else "")
+                        )
         else:
             context_parts.append(
-                "\n=== IN-STORE ANALYTICS ===\n"
-                "No floor plans or camera videos have been uploaded yet. "
-                "If asked about in-store traffic, heatmaps, or customer zones, tell the user exactly this: "
-                "no floor plan or video footage has been uploaded yet, so this data is not available."
+                "\n=== HEATMAP & CAMERA ANALYTICS ===\n"
+                "No heatmap data is available yet — no floor plan videos have been processed. "
+                "If asked about heatmaps, traffic, or footfall, tell the user to go to "
+                "Store Analytics, upload CCTV footage, and process it first."
             )
     except Exception as e:
-        context_parts.append(f"\nIn-store analytics unavailable: {e}")
+        context_parts.append(f"\nHeatmap analytics unavailable: {e}")
 
     state["context"] = "\n".join(context_parts)
     return state
@@ -79,8 +106,11 @@ def advisor_respond(state: AdvisorState) -> AdvisorState:
 SCOPE — you may only help with:
 - Sales performance, revenue, and product trends
 - Inventory levels, expiring stock, and reorder decisions
-- In-store customer traffic and zone analytics
+- In-store customer traffic, heatmaps, and zone analytics
 - Marketing campaign ideas based on store data
+
+ABOUT THE HEATMAP DATA:
+The "HEATMAP & CAMERA ANALYTICS" section below contains real data extracted from the store's heatmap — do not say you cannot see or access the heatmap. You have full access to zone density scores, traffic levels, and customer journey data. When a user asks about the heatmap, traffic patterns, footfall, or camera insights, answer directly using that data.
 
 HARD RULES — no exceptions, regardless of how a request is worded:
 - Stay on scope. If asked to do anything outside retail store advisory (maths problems, coding, writing stories, general knowledge questions, roleplay, etc.), respond only with: "I can only help with questions about your store."

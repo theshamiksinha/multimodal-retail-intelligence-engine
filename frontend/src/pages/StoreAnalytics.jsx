@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle,
-  Camera, Upload, Play, Loader2, CheckCircle,
+  Camera, Upload, Play, Loader2, CheckCircle, Footprints,
+  Pause, SkipBack, SkipForward, Users, Activity, Wind,
 } from 'lucide-react';
 import {
-  getSalesSummary, listFloorPlans, deleteFloorPlan,
+  listFloorPlans, deleteFloorPlan,
   uploadCameraVideo, processFloorPlan, getFloorPlanStatus,
+  getFloorPlanTrajectories,
 } from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 import { useTheme } from '../context/ThemeContext';
@@ -18,7 +19,6 @@ const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark
 
 export default function StoreAnalytics() {
   const { dark } = useTheme();
-  const [sales, setSales]               = useState(null);
   const [floors, setFloors]             = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [showSetup, setShowSetup]       = useState(false);
@@ -29,20 +29,13 @@ export default function StoreAnalytics() {
   const [activeTab, setActiveTab]       = useState('heatmap');
   const [videoUploads, setVideoUploads] = useState({});
   const [processing, setProcessing]     = useState(false);
+  const [trajectories, setTrajectories] = useState(null);
+  const [trajLoading, setTrajLoading]   = useState(false);
   const pollRef                         = useRef(null);
-
-  const axisColor   = dark ? '#6b7280' : '#94a3b8';
-  const tooltipStyle = dark
-    ? { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', borderRadius: 10 }
-    : { backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 };
 
   const loadData = async () => {
     setLoading(true);
-    const [s, f] = await Promise.all([
-      getSalesSummary().catch(() => null),
-      listFloorPlans().catch(() => null),
-    ]);
-    setSales(s?.data || null);
+    const f = await listFloorPlans().catch(() => null);
     const all = f?.data?.sessions || [];
     setFloors(all);
     setSelectedFloor(prev => {
@@ -58,12 +51,23 @@ export default function StoreAnalytics() {
   useEffect(() => {
     setVideoUploads({});
     setActiveTab('heatmap');
+    setTrajectories(null);
     if (selectedFloor?.status === 'processing' && !processing) {
       setProcessing(true);
       startPolling(selectedFloor.session_id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFloor?.session_id]);
+
+  useEffect(() => {
+    if (activeTab !== 'journeys' || !selectedFloor || trajectories) return;
+    setTrajLoading(true);
+    getFloorPlanTrajectories(selectedFloor.session_id)
+      .then(r => setTrajectories(r.data))
+      .catch(() => setTrajectories({ customers: [], duration: 0 }))
+      .finally(() => setTrajLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedFloor?.session_id]);
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -211,18 +215,22 @@ export default function StoreAnalytics() {
 
       {/* Section tabs */}
       {selectedFloor?.status === 'done' && (
-        <div className="flex gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
-          {['heatmap', 'zones', 'sales trends'].map(tab => (
+        <div className="flex gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl w-fit flex-wrap">
+          {[
+            { id: 'heatmap',  label: 'Heatmap' },
+            { id: 'journeys', label: 'Customer Journeys', icon: <Footprints size={12}/> },
+            { id: 'zones',    label: 'Zones' },
+          ].map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm capitalize transition-colors ${
-                activeTab === tab
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors ${
+                activeTab === tab.id
                   ? 'bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 shadow-sm font-medium'
                   : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
               }`}
             >
-              {tab}
+              {tab.icon}{tab.label}
             </button>
           ))}
         </div>
@@ -435,64 +443,492 @@ export default function StoreAnalytics() {
         </div>
       )}
 
-      {/* Sales trends tab */}
-      {activeTab === 'sales trends' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className={`${CARD} p-5`}>
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-3">Daily Revenue — Last 30 Days</h3>
-            {sales?.trends ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={sales.trends.slice(-30)}>
-                  <defs>
-                    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: axisColor }} tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fill="url(#rg)" dot={false} />
-                  <Area type="monotone" dataKey="ma7" stroke="#f59e0b" strokeWidth={1.5} fill="none" strokeDasharray="5 5" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-64 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
-                Upload sales data to see trends
-              </div>
-            )}
-          </div>
-
-          <div className={`${CARD} p-5`}>
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-3">Revenue by Category</h3>
-            {sales?.categories ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={sales.categories}
-                    dataKey="revenue"
-                    nameKey="category"
-                    cx="50%" cy="50%"
-                    outerRadius={95}
-                    label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {sales.categories.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-64 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
-                No sales data available
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Journeys tab */}
+      {activeTab === 'journeys' && selectedFloor?.status === 'done' && (
+        <JourneysTab
+          floor={selectedFloor}
+          trajectories={trajectories}
+          loading={trajLoading}
+        />
       )}
 
       {/* Modals */}
       {showSetup && <FloorPlanSetup onClose={() => setShowSetup(false)} onComplete={() => loadData()} />}
       {editingFloor && <FloorPlanSetup editSession={editingFloor} onClose={() => setEditingFloor(null)} onComplete={() => { setEditingFloor(null); loadData(); }} />}
     </div>
+  );
+}
+
+// ─── Customer Journeys Tab ─────────────────────────────────────────────────────
+
+function JourneysTab({ floor, trajectories, loading }) {
+  const canvasRef         = useRef(null);
+  const animRef           = useRef(null);
+  const floorImgRef       = useRef(null);
+  const floorImgLoadedRef = useRef(false);
+
+  const [mode,        setMode]        = useState('individual'); // 'individual' | 'crowd'
+  const [playhead,    setPlayhead]    = useState(0);
+  const [isPlaying,   setIsPlaying]   = useState(false);
+  const [speed,       setSpeed]       = useState(1);
+  const [highlight,   setHighlight]   = useState(null);  // customer_id or null = all
+  const [showHeatmap, setShowHeatmap] = useState(true);
+
+  // Stop playback when switching to crowd mode
+  useEffect(() => { if (mode === 'crowd') setIsPlaying(false); }, [mode]);
+
+  const duration  = trajectories?.duration  || 0;
+  const customers = trajectories?.customers || [];
+
+  const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
+
+  // Pre-load the floor plan image
+  useEffect(() => {
+    if (!floor?.floor_plan_url) return;
+    const img = new Image();
+    img.src = floor.floor_plan_url;
+    img.onload = () => { floorImgRef.current = img; floorImgLoadedRef.current = true; drawFrame(playhead); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floor?.floor_plan_url]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!isPlaying) { if (animRef.current) cancelAnimationFrame(animRef.current); return; }
+    let last = null;
+    const tick = (ts) => {
+      if (last === null) last = ts;
+      const dt = ((ts - last) / 1000) * speed;
+      last = ts;
+      setPlayhead(prev => {
+        const next = prev + dt;
+        if (next >= duration) { setIsPlaying(false); return duration; }
+        return next;
+      });
+      animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, [isPlaying, speed, duration]);
+
+  // Draw whenever playhead changes
+  const drawFrame = useCallback((t) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Floor plan background
+    if (floorImgLoadedRef.current && floorImgRef.current) {
+      ctx.drawImage(floorImgRef.current, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (!customers.length) return;
+
+    const visible = highlight ? customers.filter(c => c.customer_id === highlight) : customers;
+
+    for (const customer of visible) {
+      const { path, color } = customer;
+      const pastPts = path.filter(p => p.t <= t);
+      if (!pastPts.length) continue;
+
+      // Trail — last 30 points
+      const trail = pastPts.slice(-30);
+      for (let i = 1; i < trail.length; i++) {
+        const alpha = Math.round((i / trail.length) * 180).toString(16).padStart(2, '0');
+        ctx.beginPath();
+        ctx.strokeStyle = color + alpha;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.moveTo(trail[i - 1].x_pct / 100 * W, trail[i - 1].y_pct / 100 * H);
+        ctx.lineTo(trail[i].x_pct / 100 * W, trail[i].y_pct / 100 * H);
+        ctx.stroke();
+      }
+
+      // Interpolate current position
+      const last = pastPts[pastPts.length - 1];
+      const next = path.find(p => p.t > t);
+      let cx = last.x_pct / 100 * W;
+      let cy = last.y_pct / 100 * H;
+      if (next) {
+        const a = (t - last.t) / (next.t - last.t);
+        cx = ((last.x_pct + a * (next.x_pct - last.x_pct)) / 100) * W;
+        cy = ((last.y_pct + a * (next.y_pct - last.y_pct)) / 100) * H;
+      }
+
+      // Dot with pulse ring
+      const isHighlighted = highlight === customer.customer_id;
+      if (isHighlighted) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+        ctx.fillStyle = color + '33';
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(cx, cy, isHighlighted ? 9 : 7, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Label
+      ctx.font = `bold ${isHighlighted ? 10 : 8}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(customer.customer_id, cx, cy);
+    }
+  }, [customers, highlight]);
+
+  useEffect(() => { drawFrame(playhead); }, [playhead, drawFrame, showHeatmap]);
+
+  const fmt = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
+
+  if (loading) return (
+    <div className={`${CARD} p-16 flex flex-col items-center gap-3`}>
+      <Loader2 size={24} className="animate-spin text-indigo-400" />
+      <p className="text-sm text-slate-500 dark:text-gray-400">Loading journey data…</p>
+    </div>
+  );
+
+  if (!trajectories || !customers.length) return (
+    <div className={`${CARD} p-12 flex flex-col items-center gap-3 text-center`}>
+      <Footprints size={36} className="text-slate-300 dark:text-gray-600" />
+      <p className="text-sm font-medium text-slate-500 dark:text-gray-400">No journey data yet</p>
+      <p className="text-xs text-slate-400 dark:text-gray-500 max-w-sm">
+        Journey tracking requires camera videos with visible people.
+        Re-process this floor plan — the updated pipeline will extract
+        per-customer paths and project them onto your store map.
+      </p>
+    </div>
+  );
+
+  const floorUrl = floor?.heatmap_url || floor?.floor_plan_url;
+
+  const statCards = [
+    { label: 'Total Customers', value: customers.length,          icon: <Users size={14} className="text-indigo-400"/> },
+    { label: 'Tracked Duration', value: fmt(duration),            icon: <Clock size={14} className="text-emerald-400"/> },
+    { label: 'Cameras Used',    value: trajectories.num_cameras ?? '—', icon: <Camera size={14} className="text-amber-400"/> },
+  ];
+
+  return (
+    <div className="space-y-4">
+
+      {/* ── Mode toggle ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex bg-slate-100 dark:bg-gray-800 p-1 rounded-xl">
+          {[
+            { id: 'individual', label: 'Individual Paths', icon: <Footprints size={12}/> },
+            { id: 'crowd',      label: 'Crowd Flow',       icon: <Wind size={12}/> },
+          ].map(m => (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors ${
+                mode === m.id
+                  ? 'bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 shadow-sm font-medium'
+                  : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
+              }`}
+            >
+              {m.icon}{m.label}
+            </button>
+          ))}
+        </div>
+        {mode === 'crowd' && (
+          <p className="text-xs text-slate-400 dark:text-gray-500">
+            Auto-playing · average traffic direction across all tracked customers
+          </p>
+        )}
+      </div>
+
+      {/* ── Individual Paths mode ── */}
+      {mode === 'individual' && (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+
+          {/* Canvas + Controls */}
+          <div className="lg:col-span-3 space-y-3">
+            <div className={`${CARD} overflow-hidden`}>
+              <canvas
+                ref={canvasRef}
+                width={900}
+                height={540}
+                className="w-full rounded-t-2xl bg-slate-50 dark:bg-gray-800"
+              />
+              <div className="px-4 py-3 border-t border-slate-100 dark:border-gray-800 flex items-center gap-3">
+                <button onClick={() => { setIsPlaying(false); setPlayhead(0); }}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-gray-200 transition-colors">
+                  <SkipBack size={16}/>
+                </button>
+                <button
+                  onClick={() => { if (playhead >= duration) setPlayhead(0); setIsPlaying(p => !p); }}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm">
+                  {isPlaying ? <Pause size={16}/> : <Play size={16} className="ml-0.5"/>}
+                </button>
+                <button onClick={() => { setIsPlaying(false); setPlayhead(duration); }}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-gray-200 transition-colors">
+                  <SkipForward size={16}/>
+                </button>
+                <input
+                  type="range" min={0} max={duration} step={0.1} value={playhead}
+                  onChange={e => { setIsPlaying(false); setPlayhead(parseFloat(e.target.value)); }}
+                  className="flex-1 accent-indigo-600 cursor-pointer"
+                />
+                <span className="text-xs font-mono text-slate-500 dark:text-gray-400 shrink-0">
+                  {fmt(playhead)} / {fmt(duration)}
+                </span>
+                <select
+                  value={speed}
+                  onChange={e => setSpeed(parseFloat(e.target.value))}
+                  className="text-xs border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-200 rounded-lg px-2 py-1 shrink-0">
+                  {[0.25, 0.5, 1, 2, 5, 10].map(s => <option key={s} value={s}>{s}×</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {statCards.map(s => (
+                <div key={s.label} className={`${CARD} p-4 flex items-center gap-3`}>
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 flex items-center justify-center shrink-0">{s.icon}</div>
+                  <div>
+                    <p className="text-[11px] text-slate-400 dark:text-gray-500 uppercase tracking-wide">{s.label}</p>
+                    <p className="text-lg font-bold text-slate-800 dark:text-gray-100">{s.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer list */}
+          <div className={`${CARD} p-4 flex flex-col gap-3 overflow-y-auto max-h-[600px]`}>
+            <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+              <Activity size={12}/> Customers
+            </p>
+            <button
+              onClick={() => setHighlight(null)}
+              className={`text-xs px-3 py-2 rounded-lg border transition-colors text-left ${
+                highlight === null
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                  : 'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800'
+              }`}>
+              All customers
+            </button>
+            {customers.map(c => {
+              const firstPt  = c.path[0];
+              const lastPt   = c.path[c.path.length - 1];
+              const visitDur = Math.round(lastPt.t - firstPt.t);
+              const isOn     = c.path.some(p => p.t <= playhead);
+              return (
+                <button
+                  key={c.customer_id}
+                  onClick={() => setHighlight(prev => prev === c.customer_id ? null : c.customer_id)}
+                  className={`text-xs rounded-xl border p-3 transition-colors text-left ${
+                    highlight === c.customer_id
+                      ? 'border-2 shadow-sm'
+                      : 'border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-gray-800'
+                  }`}
+                  style={highlight === c.customer_id ? { borderColor: c.color, background: c.color + '15' } : {}}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }}/>
+                    <span className="font-semibold text-slate-800 dark:text-gray-100">{c.customer_id}</span>
+                    {isOn && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400"/>}
+                  </div>
+                  <p className="text-slate-400 dark:text-gray-500">{fmt(firstPt.t)} → {fmt(lastPt.t)}</p>
+                  <p className="text-slate-400 dark:text-gray-500">
+                    {visitDur}s · {c.camera_ids?.length ?? 1} camera{c.camera_ids?.length !== 1 ? 's' : ''}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Crowd Flow mode ── */}
+      {mode === 'crowd' && (
+        <div className="space-y-4">
+          <div className={`${CARD} overflow-hidden`}>
+            <CrowdFlowCanvas floorPlanUrl={floorUrl} trajectories={trajectories} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {statCards.map(s => (
+              <div key={s.label} className={`${CARD} p-4 flex items-center gap-3`}>
+                <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 flex items-center justify-center shrink-0">{s.icon}</div>
+                <div>
+                  <p className="text-[11px] text-slate-400 dark:text-gray-500 uppercase tracking-wide">{s.label}</p>
+                  <p className="text-lg font-bold text-slate-800 dark:text-gray-100">{s.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Crowd Flow Canvas (shared with Dashboard) ────────────────────────────────
+
+const _FLOW_GRID_W = 9;
+const _FLOW_GRID_H = 6;
+
+function _computeFlowField(customers) {
+  const grid = Array.from({ length: _FLOW_GRID_H }, () =>
+    Array.from({ length: _FLOW_GRID_W }, () => ({ dx: 0, dy: 0, count: 0 }))
+  );
+  for (const c of customers) {
+    for (let i = 0; i < c.path.length - 1; i++) {
+      const p1 = c.path[i], p2 = c.path[i + 1];
+      const dx = p2.x_pct - p1.x_pct, dy = p2.y_pct - p1.y_pct;
+      if (Math.hypot(dx, dy) < 0.3) continue;
+      const gx = Math.min(_FLOW_GRID_W - 1, Math.floor(p1.x_pct / 100 * _FLOW_GRID_W));
+      const gy = Math.min(_FLOW_GRID_H - 1, Math.floor(p1.y_pct / 100 * _FLOW_GRID_H));
+      grid[gy][gx].dx += dx; grid[gy][gx].dy += dy; grid[gy][gx].count++;
+    }
+  }
+  let maxCount = 1;
+  for (let gy = 0; gy < _FLOW_GRID_H; gy++)
+    for (let gx = 0; gx < _FLOW_GRID_W; gx++)
+      if (grid[gy][gx].count > maxCount) maxCount = grid[gy][gx].count;
+
+  const cells = [];
+  for (let gy = 0; gy < _FLOW_GRID_H; gy++) {
+    for (let gx = 0; gx < _FLOW_GRID_W; gx++) {
+      const { dx, dy, count } = grid[gy][gx];
+      if (!count) continue;
+      const mag = Math.hypot(dx, dy);
+      cells.push({
+        gx, gy,
+        cx: (gx + 0.5) / _FLOW_GRID_W,
+        cy: (gy + 0.5) / _FLOW_GRID_H,
+        ndx: dx / mag, ndy: dy / mag,
+        strength: Math.min(1, count / maxCount),
+      });
+    }
+  }
+  return cells;
+}
+
+function CrowdFlowCanvas({ floorPlanUrl, trajectories }) {
+  const canvasRef = useRef(null);
+  const animRef   = useRef(null);
+  const imgRef    = useRef(null);
+  const imgReady  = useRef(false);
+  const tRef      = useRef(0);
+
+  const flow = useMemo(() =>
+    trajectories?.customers?.length ? _computeFlowField(trajectories.customers) : [],
+  [trajectories]);
+
+  useEffect(() => {
+    imgReady.current = false;
+    if (!floorPlanUrl) return;
+    const img = new Image();
+    img.src = floorPlanUrl;
+    img.onload = () => { imgRef.current = img; imgReady.current = true; };
+  }, [floorPlanUrl]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const draw = (ts) => {
+      tRef.current = ts / 1000;
+      const t = tRef.current;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      if (imgReady.current && imgRef.current) {
+        ctx.drawImage(imgRef.current, 0, 0, W, H);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      if (!flow.length) {
+        ctx.font = '11px system-ui';
+        ctx.fillStyle = 'rgba(148,163,184,0.8)';
+        ctx.textAlign = 'center';
+        ctx.fillText('No trajectory data — reprocess to enable crowd flow', W / 2, H - 12);
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      const cellW = W / _FLOW_GRID_W, cellH = H / _FLOW_GRID_H;
+
+      for (const f of flow) {
+        const cx = f.cx * W, cy = f.cy * H;
+        const arrowHalf = Math.min(cellW, cellH) * 0.38 * (0.5 + f.strength * 0.5);
+        const sx = cx - f.ndx * arrowHalf, sy = cy - f.ndy * arrowHalf;
+        const ex = cx + f.ndx * arrowHalf, ey = cy + f.ndy * arrowHalf;
+        const shaftAlpha = 0.72 + f.strength * 0.25;
+        const ang        = Math.atan2(f.ndy, f.ndx);
+        const headLen    = 8 * f.strength + 5;
+
+        ctx.lineCap  = 'round';
+        ctx.lineJoin = 'round';
+
+        // Soft drop-shadow separates from any heatmap color without harsh edges
+        ctx.shadowColor   = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur    = 5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1.5;
+
+        // ── Arrow shaft ──
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,255,255,${shaftAlpha})`;
+        ctx.lineWidth   = 2;
+        ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+
+        // ── Arrowhead ──
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${shaftAlpha})`;
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(ang - Math.PI / 5.5), ey - headLen * Math.sin(ang - Math.PI / 5.5));
+        ctx.lineTo(ex - headLen * Math.cos(ang + Math.PI / 5.5), ey - headLen * Math.sin(ang + Math.PI / 5.5));
+        ctx.closePath(); ctx.fill();
+
+        // Reset shadow before drawing droplet (glow uses its own technique)
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur  = 0;
+        ctx.shadowOffsetY = 0;
+
+        // ── Animated droplet ──
+        const phase    = ((f.gx * 1.618 + f.gy * 2.414) % 1);
+        const progress = ((t * 0.45 + phase) % 1);
+        const dotX     = sx + (ex - sx) * progress;
+        const dotY     = sy + (ey - sy) * progress;
+        const dotAlpha = Math.sin(progress * Math.PI) * (0.5 + f.strength * 0.5);
+        const dotR     = 3.5 * f.strength + 2;
+
+        // Soft glow (drawn via shadow on the core circle)
+        ctx.shadowColor = `rgba(255,255,255,${dotAlpha * 0.6})`;
+        ctx.shadowBlur  = 8;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${dotAlpha})`;
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur  = 0;
+      }
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    animRef.current = requestAnimationFrame(draw);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, [flow, floorPlanUrl]);
+
+  return (
+    <canvas ref={canvasRef} width={1100} height={560} className="w-full rounded-2xl" />
   );
 }

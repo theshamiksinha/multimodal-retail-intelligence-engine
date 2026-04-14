@@ -3,6 +3,8 @@ import numpy as np
 import uuid
 import os
 import json
+import math
+from collections import defaultdict
 from scipy.ndimage import gaussian_filter
 from app.services.video_service import get_model
 
@@ -136,11 +138,15 @@ def process_session(session_id: str) -> dict:
 
         model = get_model()
 
-        # ── Step 1: per-camera heatmaps ──────────────────────────────────────
+        # ── Step 1: per-camera heatmaps + trajectory data ────────────────────
+        session_duration = 0.0
         for cam in cameras_with_video:
-            raw_heatmap, people_count = _run_yolo_heatmap(cam["video_path"], model)
+            raw_heatmap, people_count, raw_tracks, duration = _run_yolo_heatmap(cam["video_path"], model)
             cam["heatmap"]      = raw_heatmap   # (video_h, video_w) float32  0-1
             cam["people_count"] = people_count
+            cam["raw_tracks"]   = raw_tracks    # {track_id: [{t, cx_norm, cy_norm}]}
+            cam["duration"]     = duration
+            session_duration    = max(session_duration, duration)
 
         # ── Step 2: FOV-constrained assignment ───────────────────────────────
         # Camera positions in floor-plan pixel space
@@ -260,6 +266,38 @@ def process_session(session_id: str) -> dict:
                                       nearest, covered)
         session["zones"] = zones
 
+        # ── Trajectory pipeline ───────────────────────────────────────────────
+        # 1. Project each camera's tracks to floor-plan coords
+        per_cam_tracks = []
+        for cam in cameras_with_video:
+            raw_tracks = cam.get("raw_tracks", {})
+            for track_id, points in raw_tracks.items():
+                if len(points) < 2:
+                    continue
+                floor_points = [
+                    {
+                        "t":     p["t"],
+                        "x_pct": round(_project_to_floor(p["cx_norm"], p["cy_norm"], cam)[0], 2),
+                        "y_pct": round(_project_to_floor(p["cx_norm"], p["cy_norm"], cam)[1], 2),
+                    }
+                    for p in points
+                ]
+                per_cam_tracks.append({
+                    "camera_id": cam["id"],
+                    "camera_name": cam["name"],
+                    "track_id": track_id,
+                    "points": floor_points,
+                })
+
+        # 2. Link tracks across cameras (Re-ID) to build customer journeys
+        customers = _link_cross_camera_tracks(per_cam_tracks)
+        session["trajectories"] = {
+            "customers":  customers,
+            "duration":   round(session_duration, 2),
+            "num_cameras": len(cameras_with_video),
+        }
+        _save_sessions()
+
         return {
             "session_id":   session_id,
             "heatmap_url":  f"/static/heatmaps/fp_{session_id}.png",
@@ -284,8 +322,16 @@ def _get_session(session_id: str) -> dict:
     return session
 
 
-def _run_yolo_heatmap(video_path: str, model) -> tuple[np.ndarray, int]:
-    """Run YOLOv8 on a video and return a normalised float32 heatmap (0-1)."""
+def _run_yolo_heatmap(video_path: str, model) -> tuple[np.ndarray, int, dict, float]:
+    """Run YOLOv8 on a video.
+
+    Returns
+    -------
+    heatmap     : normalised float32 (0-1)
+    max_people  : peak simultaneous person count
+    tracks      : {track_id: [{"t": float, "cx_norm": float, "cy_norm": float}]}
+    duration    : total video duration in seconds
+    """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"Cannot open video: {video_path}")
@@ -298,6 +344,7 @@ def _run_yolo_heatmap(video_path: str, model) -> tuple[np.ndarray, int]:
     heatmap = np.zeros((fh, fw), dtype=np.float32)
     frame_no = 0
     max_people = 0
+    tracks: dict[int, list[dict]] = defaultdict(list)
 
     while True:
         ret, frame = cap.read()
@@ -317,15 +364,147 @@ def _run_yolo_heatmap(video_path: str, model) -> tuple[np.ndarray, int]:
                         max(0, cy - r): min(fh, cy + r),
                         max(0, cx - r): min(fw, cx + r),
                     ] += 1
+                    track_id = int(box.id[0]) if (box.id is not None) else -1
+                    if track_id >= 0:
+                        tracks[track_id].append({
+                            "t":       round(frame_no / fps, 3),
+                            "cx_norm": round(cx / fw, 4),
+                            "cy_norm": round(cy / fh, 4),
+                        })
         frame_no += 1
 
     cap.release()
+    duration = frame_no / fps
 
     heatmap = gaussian_filter(heatmap, sigma=15)
     if heatmap.max() > 0:
         heatmap = heatmap / heatmap.max()
 
-    return heatmap, max_people
+    return heatmap, max_people, dict(tracks), duration
+
+
+def _project_to_floor(cx_norm: float, cy_norm: float, cam: dict) -> tuple[float, float]:
+    """
+    Map a normalised camera-image coordinate to floor-plan percentage coords.
+
+    Model (top-down CCTV approximation):
+      cx_norm ∈ [0,1]  — 0 = left edge of FOV cone, 1 = right edge
+      cy_norm ∈ [0,1]  — 0 = far end of FOV, 1 = close to camera
+      Camera at (x_pct, y_pct) looking in fov_direction° (0=right, 90=down)
+      Cone spans fov_spread° wide, fov_range% of floor width deep.
+    """
+    fov_dir_rad    = cam.get("fov_direction", 90.0) * math.pi / 180.0
+    fov_spread_rad = cam.get("fov_spread",    60.0) * math.pi / 180.0
+    fov_range_pct  = cam.get("fov_range",     15.0)   # % of floor width
+
+    # Angular offset within the cone (cx=0 → left edge, cx=1 → right edge)
+    theta = fov_dir_rad + (cx_norm - 0.5) * fov_spread_rad
+
+    # Depth: cy=0 → far end of cone, cy=1 → at camera
+    depth_pct = (1.0 - cy_norm) * fov_range_pct
+
+    x_pct = cam["x_pct"] + depth_pct * math.cos(theta)
+    y_pct = cam["y_pct"] + depth_pct * math.sin(theta)
+
+    return max(0.0, min(100.0, x_pct)), max(0.0, min(100.0, y_pct))
+
+
+_JOURNEY_COLORS = [
+    "#6366f1", "#f59e0b", "#10b981", "#ef4444",
+    "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16",
+    "#f97316", "#14b8a6",
+]
+
+
+def _link_cross_camera_tracks(per_cam_tracks: list[dict]) -> list[dict]:
+    """
+    Link tracks from different cameras into unified customer journeys.
+
+    Strategy — spatial-temporal proximity Re-ID:
+      When track A ends and track B (from a different camera) starts within
+      TIME_THRESHOLD seconds and DIST_THRESHOLD floor-plan % units, they are
+      considered the same person.
+
+    Parameters
+    ----------
+    per_cam_tracks : list of {camera_id, camera_name, track_id, points:[{t,x_pct,y_pct}]}
+
+    Returns
+    -------
+    list of {customer_id, color, camera_ids, path:[{t,x_pct,y_pct,camera_id}]}
+    """
+    DIST_THRESHOLD = 18.0   # floor-plan %
+    TIME_THRESHOLD = 6.0    # seconds
+
+    if not per_cam_tracks:
+        return []
+
+    # Sort tracks by their start time
+    tracks = sorted(per_cam_tracks, key=lambda t: t["points"][0]["t"])
+    n = len(tracks)
+
+    # Union-Find
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int):
+        pi, pj = find(i), find(j)
+        if pi != pj:
+            parent[pi] = pj
+
+    for i in range(n):
+        t1 = tracks[i]
+        end = t1["points"][-1]
+        for j in range(i + 1, n):
+            t2 = tracks[j]
+            if t2["camera_id"] == t1["camera_id"]:
+                continue
+            start = t2["points"][0]
+            dt = start["t"] - end["t"]
+            if dt < 0 or dt > TIME_THRESHOLD:
+                continue
+            dist = math.hypot(start["x_pct"] - end["x_pct"],
+                              start["y_pct"] - end["y_pct"])
+            if dist < DIST_THRESHOLD:
+                union(i, j)
+
+    # Group by root
+    groups: dict[int, list[int]] = defaultdict(list)
+    for i in range(n):
+        groups[find(i)].append(i)
+
+    customers = []
+    for idx, (_, indices) in enumerate(sorted(groups.items())):
+        merged: list[dict] = []
+        cam_ids: set[str] = set()
+        for i in indices:
+            t = tracks[i]
+            cam_ids.add(t["camera_id"])
+            for pt in t["points"]:
+                merged.append({**pt, "camera_id": t["camera_id"]})
+
+        merged.sort(key=lambda p: p["t"])
+
+        # Deduplicate near-identical timestamps
+        deduped: list[dict] = []
+        for pt in merged:
+            if not deduped or pt["t"] - deduped[-1]["t"] > 0.05:
+                deduped.append(pt)
+
+        customers.append({
+            "customer_id": f"C{idx + 1:03d}",
+            "color":       _JOURNEY_COLORS[idx % len(_JOURNEY_COLORS)],
+            "camera_ids":  list(cam_ids),
+            "path":        deduped,
+        })
+
+    customers.sort(key=lambda c: c["path"][0]["t"])
+    return customers
 
 
 def _compute_zone_summary(unified: np.ndarray, cameras: list,
@@ -429,6 +608,14 @@ def list_sessions() -> list[dict]:
         }
         for sid, s in floor_plan_sessions.items()
     ]
+
+
+def get_trajectories(session_id: str) -> dict | None:
+    """Return trajectory data for a session, or None if not yet computed."""
+    session = floor_plan_sessions.get(session_id)
+    if not session:
+        return None
+    return session.get("trajectories")
 
 
 def delete_session(session_id: str):
