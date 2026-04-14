@@ -31,6 +31,8 @@ export default function StoreAnalytics() {
   const [processing, setProcessing]     = useState(false);
   const [trajectories, setTrajectories] = useState(null);
   const [trajLoading, setTrajLoading]   = useState(false);
+  const [recordedAt, setRecordedAt]     = useState('');
+  const [pendingUpload, setPendingUpload] = useState(null); // { camId, file, recordedAt }
   const pollRef                         = useRef(null);
 
   const loadData = async () => {
@@ -89,6 +91,18 @@ export default function StoreAnalytics() {
     }, 3000);
   };
 
+  function _nowDatetimeLocal() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+
+  // Called when a file is picked — show the timestamp popup instead of uploading immediately
+  const handleFilePicked = (camId, file) => {
+    if (!file) return;
+    setPendingUpload({ camId, file, recordedAt: _nowDatetimeLocal() });
+  };
+
   const handleVideoUpload = async (camId, file) => {
     if (!file || !selectedFloor) return;
     setVideoUploads(prev => ({ ...prev, [camId]: { status: 'uploading', filename: file.name } }));
@@ -103,11 +117,19 @@ export default function StoreAnalytics() {
     }
   };
 
+  const confirmPendingUpload = async () => {
+    const { camId, file, recordedAt: ts } = pendingUpload;
+    setPendingUpload(null);
+    if (ts) setRecordedAt(ts);
+    await handleVideoUpload(camId, file);
+  };
+
   const handleRecalibrate = async () => {
     if (!selectedFloor || processing) return;
     setProcessing(true);
     try {
-      await processFloorPlan(selectedFloor.session_id);
+      const isoRecordedAt = recordedAt ? new Date(recordedAt).toISOString() : null;
+      await processFloorPlan(selectedFloor.session_id, isoRecordedAt);
       startPolling(selectedFloor.session_id);
     } catch (e) {
       setProcessing(false);
@@ -341,16 +363,16 @@ export default function StoreAnalytics() {
                           <div className="flex items-center gap-1.5 shrink-0">
                             <CheckCircle size={11} className="text-green-500" />
                             <label className="text-xs text-slate-400 dark:text-gray-500 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
-                              Replace<input type="file" accept="video/*" className="hidden" onChange={e => handleVideoUpload(cam.id, e.target.files[0])} />
+                              Replace<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                             </label>
                           </div>
                         ) : uploadError ? (
                           <label className="flex items-center gap-1 text-xs text-red-500 cursor-pointer hover:text-red-700 shrink-0">
-                            <Upload size={11} /> Retry<input type="file" accept="video/*" className="hidden" onChange={e => handleVideoUpload(cam.id, e.target.files[0])} />
+                            <Upload size={11} /> Retry<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         ) : (
                           <label className="flex items-center gap-1 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 shrink-0">
-                            <Upload size={11} /> Upload<input type="file" accept="video/*" className="hidden" onChange={e => handleVideoUpload(cam.id, e.target.files[0])} />
+                            <Upload size={11} /> Upload<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         )}
                       </div>
@@ -455,6 +477,49 @@ export default function StoreAnalytics() {
       {/* Modals */}
       {showSetup && <FloorPlanSetup onClose={() => setShowSetup(false)} onComplete={() => loadData()} />}
       {editingFloor && <FloorPlanSetup editSession={editingFloor} onClose={() => setEditingFloor(null)} onComplete={() => { setEditingFloor(null); loadData(); }} />}
+
+      {/* Footage timestamp popup */}
+      {pendingUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-gray-800 p-6 w-80 space-y-4">
+            <div>
+              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">When was this recorded?</h3>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                {pendingUpload.file.name}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Date &amp; Time</label>
+              <input
+                type="datetime-local"
+                value={pendingUpload.recordedAt}
+                onChange={e => setPendingUpload(p => ({ ...p, recordedAt: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-gray-700
+                  bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100
+                  focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-slate-400 dark:text-gray-500">
+                Pre-filled to now — edit if the footage is from a different time.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setPendingUpload(null)}
+                className="flex-1 py-2 text-sm rounded-xl border border-slate-200 dark:border-gray-700
+                  text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPendingUpload}
+                className="flex-1 py-2 text-sm rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,8 +38,8 @@ export const saveCameraLayout = (sessionId, cameras) =>
   api.post(`/floorplan/session/${sessionId}/cameras`, { cameras });
 export const uploadCameraVideo = (sessionId, cameraId, formData) =>
   api.post(`/floorplan/session/${sessionId}/camera/${cameraId}/video`, formData, { timeout: 120000 });
-export const processFloorPlan = (sessionId) =>
-  api.post(`/floorplan/session/${sessionId}/process`);
+export const processFloorPlan = (sessionId, recordedAt) =>
+  api.post(`/floorplan/session/${sessionId}/process`, recordedAt ? { recorded_at: recordedAt } : {});
 export const getFloorPlanStatus = (sessionId) =>
   api.get(`/floorplan/session/${sessionId}/status`);
 export const listFloorPlans = () =>

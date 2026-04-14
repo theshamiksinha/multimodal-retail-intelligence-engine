@@ -5,6 +5,7 @@ import os
 import json
 import math
 from collections import defaultdict
+from datetime import datetime, timezone
 from scipy.ndimage import gaussian_filter
 from app.services.video_service import get_model
 
@@ -65,8 +66,10 @@ def _load_sessions():
 _load_sessions()
 
 
-def create_session(floor_plan_path: str, floor_name: str = "Ground Floor") -> str:
+def create_session(floor_plan_path: str, floor_name: str = "Ground Floor",
+                   recorded_at: str | None = None) -> str:
     session_id = str(uuid.uuid4())[:8]
+    now_iso = datetime.now(timezone.utc).isoformat()
     floor_plan_sessions[session_id] = {
         "floor_plan_path": floor_plan_path,
         "floor_name": floor_name,
@@ -74,6 +77,11 @@ def create_session(floor_plan_path: str, floor_name: str = "Ground Floor") -> st
         "unified_heatmap_path": None,
         "status": "setup",
         "error": None,
+        "uploaded_at": now_iso,
+        # If the user specified when the footage was recorded, use that;
+        # otherwise default to upload time (simulates a live feed timestamp).
+        "recorded_at": recorded_at or now_iso,
+        "footage_duration_seconds": None,
     }
     _save_sessions()
     return session_id
@@ -259,6 +267,7 @@ def process_session(session_id: str) -> dict:
 
         session["unified_heatmap_path"] = out_path
         session["status"] = "done"
+        session["footage_duration_seconds"] = round(session_duration, 2)
         _save_sessions()
 
         # Zone summary (computed only within each camera's FOV pixels)
@@ -578,6 +587,9 @@ def get_session_status(session_id: str) -> dict:
         "floor_plan_url": session.get("floor_plan_preview_url"),
         "zones":        session.get("zones", []),
         "total_people": sum(c.get("people_count", 0) for c in session["cameras"]),
+        "uploaded_at":  session.get("uploaded_at"),
+        "recorded_at":  session.get("recorded_at"),
+        "footage_duration_seconds": session.get("footage_duration_seconds"),
     }
 
 
@@ -592,6 +604,9 @@ def list_sessions() -> list[dict]:
             "floor_plan_url": s.get("floor_plan_preview_url"),
             "zones":       s.get("zones", []),
             "total_people": sum(c.get("people_count", 0) for c in s["cameras"]),
+            "uploaded_at": s.get("uploaded_at"),
+            "recorded_at": s.get("recorded_at"),
+            "footage_duration_seconds": s.get("footage_duration_seconds"),
             "cameras": [
                 {
                     "id":            c["id"],
@@ -608,6 +623,13 @@ def list_sessions() -> list[dict]:
         }
         for sid, s in floor_plan_sessions.items()
     ]
+
+
+def set_recorded_at(session_id: str, recorded_at: str):
+    """Update the recorded_at timestamp for a session (called before processing)."""
+    session = _get_session(session_id)
+    session["recorded_at"] = recorded_at
+    _save_sessions()
 
 
 def get_trajectories(session_id: str) -> dict | None:

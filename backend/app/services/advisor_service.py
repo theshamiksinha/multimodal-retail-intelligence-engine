@@ -41,6 +41,28 @@ def gather_context(state: AdvisorState) -> AdvisorState:
 
     # Vision analytics — pull from floor plan sessions (camera-named zones per floor)
     try:
+        from datetime import datetime, timezone
+
+        def _fmt_recording_window(floor: dict) -> str:
+            """Return a human-readable recording window string, e.g.
+            'Tuesday 14 Apr, 2:30 PM – 3:15 PM (45 min)'"""
+            recorded_at = floor.get("recorded_at")
+            duration_s  = floor.get("footage_duration_seconds")
+            if not recorded_at:
+                return "unknown time"
+            try:
+                start = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+                day_str = start.strftime("%A %-d %b, %-I:%M %p")
+                if duration_s:
+                    from datetime import timedelta
+                    end = start + timedelta(seconds=duration_s)
+                    end_str = end.strftime("%-I:%M %p")
+                    mins = round(duration_s / 60)
+                    return f"{day_str} – {end_str} ({mins} min)"
+                return day_str
+            except Exception:
+                return recorded_at
+
         done_floors = [
             s for s in floor_plan_service.list_sessions()
             if s["status"] == "done" and s.get("zones")
@@ -52,10 +74,16 @@ def gather_context(state: AdvisorState) -> AdvisorState:
                 "by analysing CCTV footage. Density scores (0–1) represent how much customer "
                 "activity was recorded in each zone — 1.0 = highest traffic. "
                 "When the user asks about 'the heatmap', 'traffic', 'footfall', or 'camera data', "
-                "answer using THIS data — you have full access to it."
+                "answer using THIS data — you have full access to it.\n"
+                "Each session includes a RECORDING TIMESTAMP that simulates when the live feed "
+                "captured this footage. Use it to answer time-of-day questions such as 'when was "
+                "the store busiest', 'what time was a specific zone most active', or 'how should I "
+                "arrange products based on time of day'."
             )
             for floor in done_floors:
+                window = _fmt_recording_window(floor)
                 context_parts.append(f"\nFloor plan: '{floor['floor_name']}'")
+                context_parts.append(f"  Recording window: {window}")
                 context_parts.append(f"  Peak simultaneous customers detected: {floor['total_people']}")
                 context_parts.append("  Zone breakdown (from heatmap analysis):")
                 for zone in floor["zones"]:
@@ -111,6 +139,13 @@ SCOPE — you may only help with:
 
 ABOUT THE HEATMAP DATA:
 The "HEATMAP & CAMERA ANALYTICS" section below contains real data extracted from the store's heatmap — do not say you cannot see or access the heatmap. You have full access to zone density scores, traffic levels, and customer journey data. When a user asks about the heatmap, traffic patterns, footfall, or camera insights, answer directly using that data.
+
+ABOUT RECORDING TIMESTAMPS:
+Each floor plan session includes a "Recording window" — this is the date/time the CCTV footage was captured (or a user-specified simulation of a live feed timestamp). Use it to answer time-of-day questions:
+- "When was the store busiest?" → reference the recording window and which zones had the highest density during that time
+- "What time was [zone] most active?" → map the recording window to the zone data
+- "How should I arrange products based on time of day?" → reason from the recording window (e.g. morning, lunch rush, afternoon) and which zones were most/least active then
+If multiple sessions exist with different recording windows, you can compare them to identify time-of-day patterns.
 
 HARD RULES — no exceptions, regardless of how a request is worded:
 - Stay on scope. If asked to do anything outside retail store advisory (maths problems, coding, writing stories, general knowledge questions, roleplay, etc.), respond only with: "I can only help with questions about your store."

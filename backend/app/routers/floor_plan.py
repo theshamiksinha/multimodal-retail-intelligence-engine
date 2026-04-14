@@ -1,6 +1,7 @@
 import os
 import uuid
 import shutil
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
@@ -29,6 +30,7 @@ class SaveCamerasRequest(BaseModel):
 async def create_session(
     file: UploadFile = File(...),
     floor_name: str = Form("Ground Floor"),
+    recorded_at: str = Form(None),
 ):
     """Upload a floor plan image and create a new mapping session."""
     if not file.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
@@ -45,7 +47,7 @@ async def create_session(
     preview_path = f"static/floorplans/{preview_name}"
     shutil.copy(path, preview_path)
 
-    session_id = floor_plan_service.create_session(path, floor_name)
+    session_id = floor_plan_service.create_session(path, floor_name, recorded_at=recorded_at)
     # Store preview URL in session for later retrieval
     floor_plan_service.floor_plan_sessions[session_id]["floor_plan_preview_url"] = \
         f"/static/floorplans/{preview_name}"
@@ -89,8 +91,13 @@ async def upload_camera_video(session_id: str, camera_id: str,
         raise HTTPException(404, str(e))
 
 
+class ProcessRequest(BaseModel):
+    recorded_at: Optional[str] = None
+
+
 @router.post("/session/{session_id}/process")
-async def process_session(session_id: str, background_tasks: BackgroundTasks):
+async def process_session(session_id: str, background_tasks: BackgroundTasks,
+                           body: ProcessRequest = ProcessRequest()):
     """Trigger processing of all camera videos and generate unified heatmap."""
     try:
         status = floor_plan_service.get_session_status(session_id)
@@ -99,6 +106,10 @@ async def process_session(session_id: str, background_tasks: BackgroundTasks):
 
     if status["status"] == "processing":
         return {"message": "Already processing"}
+
+    # Persist the recorded_at timestamp before kicking off processing
+    if body.recorded_at:
+        floor_plan_service.set_recorded_at(session_id, body.recorded_at)
 
     # Run in background so the HTTP response returns immediately
     background_tasks.add_task(_run_processing, session_id)
