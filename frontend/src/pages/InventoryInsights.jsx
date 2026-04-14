@@ -296,7 +296,7 @@ export default function InventoryInsights() {
               </div>
               <p className="text-2xl font-bold text-slate-800 dark:text-gray-100">{inventory.total_products}</p>
               <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
-                Value: ${inventory.total_inventory_value?.toLocaleString()}
+                Value: ₹{inventory.total_inventory_value?.toLocaleString()}
               </p>
             </div>
 
@@ -398,13 +398,13 @@ export default function InventoryInsights() {
                       <td className="py-3 text-slate-800 dark:text-gray-200 font-medium">{item.product_name}</td>
                       <td className="py-3 text-slate-500 dark:text-gray-400">{item.category}</td>
                       <td className="py-3 text-right text-slate-800 dark:text-gray-200">{item.current_stock}</td>
-                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">${item.unit_price}</td>
+                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">₹{item.unit_price}</td>
                       <td className="py-3 text-right text-slate-500 dark:text-gray-400">
                         {item.days_to_expiry != null ? `${item.days_to_expiry}d` : '—'}
                       </td>
                       <td className="py-3 text-center">
                         {item.current_stock <= item.reorder_point ? (
-                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium">Low</span>
+                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium animate-pulse">Low</span>
                         ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
                           <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">Expiring</span>
                         ) : (
