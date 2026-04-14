@@ -17,6 +17,7 @@ import AIAssistant from './pages/AIAssistant';
 import InventoryInsights from './pages/InventoryInsights';
 import SettingsPage from './pages/SettingsPage';
 import { useTheme } from './context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import './index.css';
 
 const navItems = [
@@ -37,6 +38,7 @@ const PAGE_TITLES = {
 };
 
 function Sidebar({ open, setOpen, onLogout }) {
+  const { t } = useTranslation();
   return (
     <aside className={`${open ? 'w-56' : 'w-16'} relative flex flex-col shrink-0 transition-all duration-300
       bg-white dark:bg-gray-900 border-r border-slate-100 dark:border-gray-800`}>
@@ -72,7 +74,7 @@ function Sidebar({ open, setOpen, onLogout }) {
             }
           >
             <Icon size={17} className="shrink-0" />
-            {open && <span className="whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
+            {open && <span className="whitespace-nowrap overflow-hidden text-ellipsis">{t(`sidebar.${path}`, label)}</span>}
           </NavLink>
         ))}
       </nav>
@@ -90,7 +92,7 @@ function Sidebar({ open, setOpen, onLogout }) {
           }
         >
           <Settings size={17} className="shrink-0" />
-          {open && <span>Settings</span>}
+          {open && <span>{t('sidebar.settings', 'Settings')}</span>}
         </NavLink>
 
         <button
@@ -101,7 +103,7 @@ function Sidebar({ open, setOpen, onLogout }) {
             hover:text-red-500 dark:hover:text-red-400 transition-colors"
         >
           <LogOut size={17} className="shrink-0" />
-          {open && <span>Log out</span>}
+          {open && <span>{t('sidebar.logout', 'Log out')}</span>}
         </button>
       </div>
 
@@ -122,7 +124,8 @@ function Sidebar({ open, setOpen, onLogout }) {
 function Header() {
   const location = useLocation();
   const { dark, toggle } = useTheme();
-  const title = PAGE_TITLES[location.pathname] ?? 'Dashboard';
+  const { t } = useTranslation();
+  const title = t(`pageTitles.${location.pathname}`, PAGE_TITLES[location.pathname] ?? 'Dashboard');
 
   return (
     <header className="h-16 px-6 shrink-0 flex items-center justify-between

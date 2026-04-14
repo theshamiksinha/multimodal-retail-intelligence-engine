@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Users, DollarSign, Maximize2, Check, Save, Store, Mic, ScanText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, DollarSign, Maximize2, Check, Save, Store, Mic, ScanText, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { SETUP_KEY } from '../components/SetupWizard';
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
@@ -77,11 +78,28 @@ function Toggle({ enabled, onChange }) {
 }
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation();
   const stored = getStored();
   const [storeName, setStoreName] = useState(stored.storeName || '');
   const [answers, setAnswers]     = useState(stored);
   const [features, setFeatures]   = useState(stored.features || { voiceEntry: false, ocrEntry: false });
+  const [lang, setLangState]      = useState(localStorage.getItem('appLanguage') || i18n.language || 'en');
   const [saved, setSaved]         = useState(false);
+
+  useEffect(() => {
+    return () => {
+      const persisted = localStorage.getItem('appLanguage') || 'en';
+      if (i18n.language !== persisted) {
+        i18n.changeLanguage(persisted);
+      }
+    };
+  }, [i18n]);
+
+  const setLang = (l) => {
+    setSaved(false);
+    setLangState(l);
+    i18n.changeLanguage(l); // Preview instantly
+  };
 
   const set = (id, value) => {
     setSaved(false);
@@ -100,6 +118,8 @@ export default function SettingsPage() {
       features,
       completed: true,
     }));
+    localStorage.setItem('appLanguage', lang);
+    i18n.changeLanguage(lang);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -127,12 +147,44 @@ export default function SettingsPage() {
         />
       </div>
 
+      {/* Language */}
+      <div className={`${CARD} p-5`}>
+        <div className="flex items-center gap-2 mb-4">
+          <Globe size={15} className="text-indigo-500" />
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t('settings.language')}</h3>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => { setSaved(false); setLang('en'); }}
+            className={`flex-1 px-4 py-3 flex justify-between items-center rounded-xl border transition-all duration-150 text-left ${
+              lang === 'en'
+                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-800 dark:text-white'
+                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+            }`}
+          >
+            <span className="text-sm font-medium">English</span>
+            {lang === 'en' && <Check size={14} className="text-indigo-500" />}
+          </button>
+          <button
+            onClick={() => { setSaved(false); setLang('hi'); }}
+            className={`flex-1 px-4 py-3 flex justify-between items-center rounded-xl border transition-all duration-150 text-left ${
+              lang === 'hi'
+                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-800 dark:text-white'
+                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+            }`}
+          >
+            <span className="text-sm font-medium">हिंदी (Hindi)</span>
+            {lang === 'hi' && <Check size={14} className="text-indigo-500" />}
+          </button>
+        </div>
+      </div>
+
       {/* Store profile option cards */}
       {SECTIONS.map(({ id, icon: Icon, label, options }) => (
         <div key={id} className={`${CARD} p-5`}>
           <div className="flex items-center gap-2 mb-4">
             <Icon size={15} className="text-indigo-500" />
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">{label}</h3>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t(`settings.sections.${id}`, label)}</h3>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             {options.map(opt => {
@@ -149,9 +201,9 @@ export default function SettingsPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-sm font-medium">{t(`settings.options.${opt.value}.label`, opt.label)}</p>
                       <p className={`text-xs mt-0.5 ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                        {opt.sub}
+                        {t(`settings.options.${opt.value}.sub`, opt.sub)}
                       </p>
                     </div>
                     {active && (
@@ -169,9 +221,9 @@ export default function SettingsPage() {
 
       {/* Inventory input features */}
       <div className={`${CARD} p-5`}>
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100 mb-1">Inventory Input Methods</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100 mb-1">{t('settings.inputMethods', 'Inventory Input Methods')}</h3>
         <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
-          CSV / Excel import is always available. Enable additional methods below.
+          {t('settings.inputMethodsSub', 'CSV / Excel import is always available. Enable additional methods below.')}
         </p>
         <div className="space-y-3">
           {FEATURE_TOGGLES.map(({ key, icon: Icon, label, sub }) => (
@@ -181,8 +233,8 @@ export default function SettingsPage() {
                   <Icon size={14} className={features[key] ? 'text-indigo-500' : 'text-slate-400 dark:text-gray-500'} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{label}</p>
-                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{sub}</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{t(`settings.features.${key}.label`, label)}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{t(`settings.features.${key}.sub`, sub)}</p>
                 </div>
               </div>
               <Toggle enabled={features[key]} onChange={v => setFeature(key, v)} />
@@ -200,7 +252,7 @@ export default function SettingsPage() {
         }`}
       >
         {saved ? <Check size={15} /> : <Save size={15} />}
-        {saved ? 'Saved!' : 'Save Changes'}
+        {saved ? t('settings.saved', 'Saved!') : t('settings.save', 'Save Changes')}
       </button>
     </div>
   );

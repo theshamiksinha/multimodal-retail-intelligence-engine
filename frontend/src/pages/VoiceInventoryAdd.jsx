@@ -12,6 +12,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Check, X, Edit2, Plus, Trash2, Loader2, Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // ── tiny helpers ──────────────────────────────────────────────────────────────
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
@@ -57,6 +58,7 @@ function Field({ label, value, onChange, type = 'text', options }) {
 
 // ── main component ─────────────────────────────────────────────────────────────
 export default function VoiceInventoryAdd({ onProductsAdded }) {
+  const { t } = useTranslation();
   /* recording state */
   const [phase, setPhase] = useState('idle'); // idle | recording | processing | confirm | success | error
   const [audioBlob, setAudioBlob]       = useState(null);
@@ -198,9 +200,9 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
             <Volume2 size={16} className="text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">Voice Inventory Entry</h3>
+            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('inventory.voiceEntryTitle', 'Voice Inventory Entry')}</h3>
             <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
-              Speak to add one or more products at once
+              {t('inventory.voiceEntrySub', 'Speak to add one or more products at once')}
             </p>
           </div>
         </div>
@@ -216,9 +218,9 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
       {phase === 'idle' && (
         <div className="flex flex-col items-center gap-4 py-6">
           <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
-            Press the microphone and say something like:<br />
+            {t('inventory.voiceInstructions', 'Press the microphone and say something like:')}<br />
             <span className="italic text-slate-500 dark:text-gray-400">
-              "Add 50 units of Greek Yogurt at ₹3.99, expires in 5 days, and 30 units of Sparkling Water at ₹5.49"
+              {t('inventory.voiceExample', '"Add 50 units of Greek Yogurt at ₹3.99, expires in 5 days, and 30 units of Sparkling Water at ₹5.49"')}
             </span>
           </p>
           <button
@@ -226,7 +228,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
             className="group relative flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
           >
             <Mic size={16} />
-            Start Recording
+            {t('inventory.startRecording', 'Start Recording')}
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
         </div>
@@ -249,7 +251,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
             onClick={stopRecording}
             className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 dark:bg-gray-700 hover:bg-slate-700 dark:hover:bg-gray-600 text-white rounded-2xl text-sm font-medium transition-all active:scale-95"
           >
-            <MicOff size={15} /> Stop &amp; Process
+            <MicOff size={15} /> {t('inventory.stopProcess', 'Stop & Process')}
           </button>
         </div>
       )}

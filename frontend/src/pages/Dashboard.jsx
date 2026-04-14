@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, A
 import { TrendingUp, DollarSign, AlertTriangle, MapPin, ArrowRight, ChevronDown, RefreshCw, Wind } from 'lucide-react';
 import { getSalesSummary, getInventoryStatus, listFloorPlans, processFloorPlan, getFloorPlanStatus, getFloorPlanTrajectories } from '../api';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { SETUP_KEY } from '../components/SetupWizard';
 
 function getStoreName() {
@@ -14,6 +15,7 @@ const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark
 
 export default function Dashboard() {
   const { dark } = useTheme();
+  const { t } = useTranslation();
   const storeName = getStoreName();
   const [sales, setSales]           = useState(null);
   const [inventory, setInventory]   = useState(null);
@@ -104,32 +106,32 @@ export default function Dashboard() {
 
   const stats = [
     {
-      label: 'Total Revenue',
-      sub: '90-day window',
+      label: t('dashboard.revenue', 'Total Revenue'),
+      sub: t('dashboard.days90', '90-day window'),
       value: sales ? '₹' + Number(sales.total_revenue).toLocaleString() : '—',
       icon: DollarSign,
       color: 'text-green-600 dark:text-green-400',
       bg: 'bg-green-50 dark:bg-green-950/40',
     },
     {
-      label: 'Items Sold',
-      sub: '90-day window',
+      label: t('dashboard.itemsSold', 'Items Sold'),
+      sub: t('dashboard.days90', '90-day window'),
       value: sales ? Number(sales.total_items_sold).toLocaleString() : '—',
       icon: TrendingUp,
       color: 'text-blue-600 dark:text-blue-400',
       bg: 'bg-blue-50 dark:bg-blue-950/40',
     },
     {
-      label: 'Floor Plans',
-      sub: 'configured',
+      label: t('dashboard.floorPlans', 'Floor Plans'),
+      sub: t('dashboard.configured', 'configured'),
       value: String(floors.length),
       icon: MapPin,
       color: 'text-violet-600 dark:text-violet-400',
       bg: 'bg-violet-50 dark:bg-violet-950/40',
     },
     {
-      label: 'Expiring Soon',
-      sub: 'within 7 days',
+      label: t('dashboard.expiring', 'Expiring Soon'),
+      sub: t('dashboard.within7', 'within 7 days'),
       value: inventory?.expiring_soon ? String(inventory.expiring_soon.length) : '—',
       icon: AlertTriangle,
       color: 'text-amber-600 dark:text-amber-400',
@@ -147,7 +149,7 @@ export default function Dashboard() {
       {storeName && (
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-gray-100">{storeName}</h2>
-          <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Here's what's happening in your store</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{t('dashboard.subtitle', "Here's what's happening in your store")}</p>
         </div>
       )}
 
@@ -177,7 +179,7 @@ export default function Dashboard() {
         <div className={`${CARD} p-5`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-1.5">
-              <Wind size={14} className="text-indigo-400"/> Store Activity Map
+              <Wind size={14} className="text-indigo-400"/> {t('dashboard.activityMap', 'Store Activity Map')}
             </h2>
             <div className="flex items-center gap-2">
               {floors.length > 1 && (
@@ -201,11 +203,11 @@ export default function Dashboard() {
                   className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-indigo-600 px-2 py-1.5 border border-slate-200 dark:border-gray-700 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 >
                   <RefreshCw size={11} className={recalibrating ? 'animate-spin' : ''} />
-                  {recalibrating ? 'Running…' : 'Recalibrate'}
+                  {recalibrating ? t('dashboard.running', 'Running…') : t('dashboard.recalibrate', 'Recalibrate')}
                 </button>
               )}
               <Link to="/analytics" className="flex items-center gap-1 text-xs text-indigo-600 hover:underline">
-                Details <ArrowRight size={11} />
+                {t('dashboard.details', 'Details')} <ArrowRight size={11} />
               </Link>
             </div>
           </div>
@@ -214,8 +216,8 @@ export default function Dashboard() {
           {selectedFloor?.status === 'done' && (
             <div className="flex items-center gap-4 mb-3">
               {[
-                { label: 'Heatmap',      checked: showHeatmap, set: setShowHeatmap, color: '#f59e0b' },
-                { label: 'Traffic Flow', checked: showFlow,    set: setShowFlow,    color: '#6366f1' },
+                { label: t('dashboard.heatmap', 'Heatmap'),      checked: showHeatmap, set: setShowHeatmap, color: '#f59e0b' },
+                { label: t('dashboard.trafficFlow', 'Traffic Flow'), checked: showFlow,    set: setShowFlow,    color: '#6366f1' },
               ].map(l => (
                 <label key={l.label} className="flex items-center gap-1.5 cursor-pointer select-none group">
                   <span className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
@@ -246,13 +248,13 @@ export default function Dashboard() {
           {floors.length === 0 ? (
             <div className="h-56 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-700 flex flex-col items-center justify-center gap-2">
               <MapPin size={24} className="text-slate-300 dark:text-gray-600" />
-              <p className="text-sm font-medium text-slate-500 dark:text-gray-400">No floor plans yet</p>
-              <Link to="/analytics" className="text-xs text-indigo-500 hover:underline">Set one up in Store Analytics →</Link>
+              <p className="text-sm font-medium text-slate-500 dark:text-gray-400">{t('dashboard.noFloorPlans', 'No floor plans yet')}</p>
+              <Link to="/analytics" className="text-xs text-indigo-500 hover:underline">{t('dashboard.setupFloor', 'Set one up in Store Analytics →')}</Link>
             </div>
           ) : recalibrating || selectedFloor?.status === 'processing' ? (
             <div className="h-56 bg-slate-50 dark:bg-gray-800 rounded-xl flex flex-col items-center justify-center gap-2">
               <div className="animate-spin h-6 w-6 border-[3px] border-indigo-500 border-t-transparent rounded-full" />
-              <p className="text-sm text-slate-500 dark:text-gray-400">Running CV pipeline…</p>
+              <p className="text-sm text-slate-500 dark:text-gray-400">{t('dashboard.runningCv', 'Running CV pipeline…')}</p>
             </div>
           ) : (
             <TrafficFlowCanvas
@@ -268,9 +270,9 @@ export default function Dashboard() {
         {/* Revenue trend */}
         <div className={`${CARD} p-5`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">Revenue Trend <span className="text-slate-400 dark:text-gray-500 font-normal">(last 30 days)</span></h2>
+            <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('dashboard.revenueTrend', 'Revenue Trend')} <span className="text-slate-400 dark:text-gray-500 font-normal">({t('dashboard.last30', 'last 30 days')})</span></h2>
             <Link to="/analytics" className="flex items-center gap-1 text-xs text-indigo-600 hover:underline">
-              Details <ArrowRight size={11} />
+              {t('dashboard.details', 'Details')} <ArrowRight size={11} />
             </Link>
           </div>
           {trendData.length > 0 ? (
@@ -303,7 +305,7 @@ export default function Dashboard() {
         {/* Zone highlights */}
         <div className={`${CARD} p-5`}>
           <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">
-            Zone Highlights
+            {t('dashboard.zones', 'Zone Highlights')}
             {selectedFloor && <span className="text-xs text-slate-400 dark:text-gray-500 font-normal ml-1.5">— {selectedFloor.floor_name}</span>}
           </h2>
           {selectedFloor?.zones?.length > 0 ? (
@@ -333,7 +335,7 @@ export default function Dashboard() {
 
         {/* Top products */}
         <div className={`${CARD} p-5`}>
-          <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Top Products</h2>
+          <h2 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">{t('dashboard.products', 'Top Products')}</h2>
           {topProducts.length > 0 ? (
             <ResponsiveContainer width="100%" height={210}>
               <BarChart data={topProducts} layout="vertical">

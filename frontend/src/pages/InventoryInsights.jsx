@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart } from 'lucide-react';
 import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInventoryCsv, deleteInventoryFile, getSalesFileInfo, uploadSalesCsv, deleteSalesFile } from '../api';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
 import OCRInventoryAdd from './OCRInventoryAdd';
 import { SETUP_KEY } from '../components/SetupWizard';
@@ -17,6 +18,7 @@ function getFeatures() {
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
 function CsvInventoryUpload({ onUploaded }) {
+  const { t } = useTranslation();
   const fileRef = useRef();
   const [fileInfo, setFileInfo]   = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -68,9 +70,9 @@ function CsvInventoryUpload({ onUploaded }) {
           <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
         </div>
         <div>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">CSV / Excel Import</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('inventory.importCsv', 'CSV / Excel Import')}</h3>
           <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
-            Upload or replace your inventory file
+            {t('inventory.importSub', 'Upload or replace your inventory file')}
           </p>
         </div>
       </div>
@@ -126,6 +128,7 @@ function CsvInventoryUpload({ onUploaded }) {
 }
 
 function CsvSalesUpload({ onUploaded }) {
+  const { t } = useTranslation();
   const fileRef = useRef();
   const [fileInfo, setFileInfo]   = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -177,9 +180,9 @@ function CsvSalesUpload({ onUploaded }) {
           <ShoppingCart size={16} className="text-violet-600 dark:text-violet-400" />
         </div>
         <div>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">POS Sales Import</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('inventory.salesImport', 'POS Sales Import')}</h3>
           <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
-            Upload or replace your sales transactions file
+            {t('inventory.salesImportSub', 'Upload or replace your sales transactions file')}
           </p>
         </div>
       </div>
@@ -234,6 +237,7 @@ function CsvSalesUpload({ onUploaded }) {
 }
 
 export default function InventoryInsights() {
+  const { t } = useTranslation();
   const { dark } = useTheme();
   const features = getFeatures();
   const [inventory, setInventory] = useState(null);
@@ -292,7 +296,7 @@ export default function InventoryInsights() {
                 <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
                   <Package size={15} className="text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">Total Products</span>
+                <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('inventory.totalProducts', 'Total Products')}</span>
               </div>
               <p className="text-2xl font-bold text-slate-800 dark:text-gray-100">{inventory.total_products}</p>
               <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
@@ -305,7 +309,7 @@ export default function InventoryInsights() {
                 <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl">
                   <Clock size={15} className="text-amber-600 dark:text-amber-400" />
                 </div>
-                <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Expiring Soon</span>
+                <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">{t('dashboard.expiring', 'Expiring Soon')}</span>
               </div>
               <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{inventory.expiring_soon?.length ?? 0}</p>
               <p className="text-xs text-amber-500 mt-1">Within 7 days</p>
@@ -316,7 +320,7 @@ export default function InventoryInsights() {
                 <div className="p-2 bg-red-50 dark:bg-red-950/40 rounded-xl">
                   <AlertTriangle size={15} className="text-red-600 dark:text-red-400" />
                 </div>
-                <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Low Stock</span>
+                <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">{t('dashboard.lowStock', 'Low Stock')}</span>
               </div>
               <p className="text-2xl font-bold text-red-700 dark:text-red-300">{inventory.low_stock?.length ?? 0}</p>
               <p className="text-xs text-red-500 mt-1">Below reorder point</p>
@@ -327,7 +331,7 @@ export default function InventoryInsights() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className={`${CARD} p-5`}>
               <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-                <AlertTriangle size={14} className="text-amber-500" /> Expiring Soon
+                <AlertTriangle size={14} className="text-amber-500" /> {t('dashboard.expiring', 'Expiring Soon')}
               </h3>
               {inventory.expiring_soon?.length > 0 ? (
                 <div className="space-y-2">
@@ -354,7 +358,7 @@ export default function InventoryInsights() {
 
             <div className={`${CARD} p-5`}>
               <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-                <TrendingDown size={14} className="text-red-500" /> Low Stock Alert
+                <TrendingDown size={14} className="text-red-500" /> {t('inventory.lowStockAlert', 'Low Stock Alert')}
               </h3>
               {inventory.low_stock?.length > 0 ? (
                 <div className="space-y-2">
@@ -379,17 +383,17 @@ export default function InventoryInsights() {
 
           {/* Full inventory table */}
           <div className={`${CARD} p-5`}>
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Full Inventory</h3>
+            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">{t('inventory.fullTitle', 'Full Inventory')}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-gray-800">
-                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
-                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Category</th>
-                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Stock</th>
-                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Price</th>
-                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Expiry</th>
-                    <th className="pb-3 text-center text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Status</th>
+                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.prod', 'Product')}</th>
+                    <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.cat', 'Category')}</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.stock', 'Stock')}</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.price', 'Price')}</th>
+                    <th className="pb-3 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.expiry', 'Expiry')}</th>
+                    <th className="pb-3 text-center text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.status', 'Status')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
@@ -404,11 +408,11 @@ export default function InventoryInsights() {
                       </td>
                       <td className="py-3 text-center">
                         {item.current_stock <= item.reorder_point ? (
-                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium animate-pulse">Low</span>
+                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium animate-pulse">{t('inventory.statusLow', 'Low')}</span>
                         ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
-                          <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">Expiring</span>
+                          <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">{t('inventory.statusExpiring', 'Expiring')}</span>
                         ) : (
-                          <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">OK</span>
+                          <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">{t('inventory.statusOk', 'OK')}</span>
                         )}
                       </td>
                     </tr>

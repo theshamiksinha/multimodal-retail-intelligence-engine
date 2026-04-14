@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { generateMarketing, postToBuffer } from '../api';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const generateReelVideo     = (d) => axios.post('/api/marketing/generate-reel-video', d);
 const addMusicToReel = (d) =>
@@ -551,6 +552,7 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
 
 // ─── AI Suggest Panel ────────────────────────────────────────────────────────
 function AISuggestPanel({ onSelect }) {
+  const { t } = useTranslation();
   const [open, setOpen]       = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -609,7 +611,7 @@ function AISuggestPanel({ onSelect }) {
         onClick={load}
         className="flex items-center gap-1 text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
       >
-        <Bot size={11}/> AI Suggest
+        <Bot size={11}/> {t('marketing.botSuggest','AI Suggest')}
       </button>
 
       {open && (
@@ -1016,6 +1018,7 @@ function StepBadge({ n, active, done }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function MarketingGenerator() {
+  const { t } = useTranslation();
 
   const [form, setFormState] = useState(() => ls.get(FORM_KEY) || {
     product_name:'', product_description:'', campaign_type:'social_media',
@@ -1305,12 +1308,12 @@ export default function MarketingGenerator() {
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 bg-slate-100 dark:bg-gray-800 rounded-xl w-fit">
-        {[['create','Create',Sparkles],['calendar','Calendar',CalendarDays],['drafts','Drafts',Bot]].map(([t,l,Icon])=>(
-          <button key={t} onClick={()=>handleTabClick(t)}
+        {[['create',t('marketing.create','Create'),Sparkles],['calendar',t('marketing.calendar','Calendar'),CalendarDays],['drafts',t('marketing.drafts','Drafts'),Bot]].map(([tKey,l,Icon])=>(
+          <button key={tKey} onClick={()=>handleTabClick(tKey)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all
-              ${tab===t?'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm':'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'}`}>
+              ${tab===tKey?'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm':'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'}`}>
             <Icon size={13}/>{l}
-            {t==='calendar'&&history.length>0&&<span className="ml-0.5 bg-indigo-600 text-white text-[9px] rounded-full px-1.5 py-0.5">{history.length}</span>}
+            {tKey==='calendar'&&history.length>0&&<span className="ml-0.5 bg-indigo-600 text-white text-[9px] rounded-full px-1.5 py-0.5">{history.length}</span>}
           </button>
         ))}
       </div>
@@ -1324,26 +1327,26 @@ export default function MarketingGenerator() {
             <div className={CARD}>
               <div className="px-5 pt-5 pb-3 border-b border-slate-100 dark:border-gray-800 flex items-center gap-3">
                 <StepBadge n={1} active={!step1Done} done={step1Done}/>
-                <div><p className="text-sm font-semibold text-slate-800 dark:text-gray-100">Configure Content</p><p className="text-[11px] text-slate-400 mt-0.5">Platform, post type, and product details</p></div>
+                <div><p className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t('marketing.configContent','Configure Content')}</p><p className="text-[11px] text-slate-400 mt-0.5">{t('marketing.configSub','Platform, post type, and product details')}</p></div>
               </div>
               <div className="p-5 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Platform</label>
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.platform','Platform')}</label>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(PLATFORMS).map(([k,cfg])=>{ const Icon=cfg.icon; const on=form.platform===k; return (
                       <button key={k} onClick={()=>set('platform',k)}
                         className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-semibold transition-all ${on?'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300':'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
-                        <Icon size={14} className={on?'text-indigo-600':cfg.color}/>{cfg.label}
+                        <Icon size={14} className={on?'text-indigo-600':cfg.color}/>{t('marketing.platforms.'+k, cfg.label)}
                       </button>
                     );})}
                   </div>
                 </div>
                 {PLATFORMS[form.platform].types.length>1&&(
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Content Type</label>
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.contentType','Content Type')}</label>
                     <div className="flex p-1 bg-slate-100 dark:bg-gray-800 rounded-lg gap-1">
                       {PLATFORMS[form.platform].types.map(pt=>{ const Icon=TYPE_ICONS[pt]; const on=form.post_type===pt; return (
-                        <button key={pt} onClick={()=>set('post_type',pt)} className={`${SEG_BASE} ${on?SEG_ON:SEG_OFF}`}><Icon size={12}/>{TYPE_LABELS[pt]}</button>
+                        <button key={pt} onClick={()=>set('post_type',pt)} className={`${SEG_BASE} ${on?SEG_ON:SEG_OFF}`}><Icon size={12}/>{t('marketing.types.'+pt, TYPE_LABELS[pt])}</button>
                       );})}
                     </div>
                     {isStory&&<p className="text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2">Caption will be overlaid at the bottom of the story image.</p>}
@@ -1352,7 +1355,7 @@ export default function MarketingGenerator() {
                 )}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Product Name <span className="text-red-400">*</span></label>
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.productName','Product Name')} <span className="text-red-400">*</span></label>
                     <AISuggestPanel onSelect={({ name, description, campaign }) => {
                       set('product_name', name);
                       set('product_description', description);
@@ -1362,27 +1365,27 @@ export default function MarketingGenerator() {
                   <input type="text" value={form.product_name} onChange={e=>set('product_name',e.target.value)} placeholder="e.g. Archi POP's Chips 4-Pack" className={INPUT}/>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Description <span className="text-slate-400 font-normal normal-case">(optional)</span></label>
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.description','Description')} <span className="text-slate-400 font-normal normal-case">({t('marketing.optional','optional')})</span></label>
                   <textarea value={form.product_description} onChange={e=>set('product_description',e.target.value)} rows={2} className={INPUT}/>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Campaign</label>
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.campaign','Campaign')}</label>
                     <select value={form.campaign_type} onChange={e=>set('campaign_type',e.target.value)} className={INPUT}>
-                      <option value="social_media">Social Media</option><option value="clearance">Clearance Sale</option><option value="seasonal">Seasonal</option>
+                      <option value="socialMedia">{t('marketing.socialMedia','Social Media')}</option><option value="clearanceSale">{t('marketing.clearanceSale','Clearance Sale')}</option><option value="seasonal">{t('marketing.seasonal','Seasonal')}</option>
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Tone</label>
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.tone','Tone')}</label>
                     <select value={form.tone} onChange={e=>set('tone',e.target.value)} className={INPUT}>
-                      <option value="engaging">Engaging</option><option value="urgent">Urgent</option><option value="casual">Casual</option><option value="professional">Professional</option>
+                      <option value="engaging">{t('marketing.engaging','Engaging')}</option><option value="urgent">{t('marketing.urgent','Urgent')}</option><option value="casual">{t('marketing.casual','Casual')}</option><option value="professional">{t('marketing.professional','Professional')}</option>
                     </select>
                   </div>
                 </div>
                 <button onClick={handleGenerate} disabled={loading||imgLoading||!form.product_name.trim()}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors">
                   {loading?<Loader2 size={15} className="animate-spin"/>:<Sparkles size={15}/>}
-                  {loading?'Generating…':result?'Re-generate All':'Generate Content'}
+                  {loading?t('marketing.generating','Generating…'):result?t('marketing.regenAll','Re-generate All'):t('marketing.generateContent','Generate Content')}
                 </button>
               </div>
             </div>
@@ -1441,25 +1444,25 @@ export default function MarketingGenerator() {
             <div className={`${CARD} ${(!step1Done||!step2Done)?'opacity-60 pointer-events-none':''}`}>
               <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-gray-800 flex items-center gap-3">
                 <StepBadge n={isReel?3:2} active={step1Done&&step2Done&&pubState==='idle'} done={pubState==='done'}/>
-                <div><p className="text-sm font-semibold text-slate-800 dark:text-gray-100">Publish via Buffer</p><p className="text-[11px] text-slate-400 mt-0.5">Set timing, then send to Buffer</p></div>
+                <div><p className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t('marketing.publishTitle','Publish via Buffer')}</p><p className="text-[11px] text-slate-400 mt-0.5">{t('marketing.publishSub','Set timing, then send to Buffer')}</p></div>
               </div>
               <div className="p-5 space-y-4">
 
                 {/* Platform display — no checkbox, just shows where it's going */}
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide block mb-2">Publishing to</label>
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide block mb-2">{t('marketing.publishingTo','Publishing to')}</label>
                   <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
                     <PI size={16} className={pc?.color}/>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">{pc?.label}</p>
-                      <p className="text-[10px] text-slate-400 capitalize">{form.post_type} · {form.campaign_type.replace('_',' ')}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">{t('marketing.types.'+form.post_type, form.post_type)} · {t('marketing.'+form.campaign_type, form.campaign_type)}</p>
                     </div>
                     {pubState==='done' && <Check size={14} className="text-emerald-500"/>}
                     {pubState==='posting' && <Loader2 size={14} className="animate-spin text-indigo-500"/>}
                     {pubState==='error' && <AlertCircle size={14} className="text-red-400"/>}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1.5 pl-1">
-                    To change platform, update it in Step 1 and re-generate.
+                    {t('marketing.changePlatformHint','To change platform, update it in Step 1 and re-generate.')}
                   </p>
                 </div>
 
@@ -1471,16 +1474,16 @@ export default function MarketingGenerator() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">When to Post</label>
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('marketing.whenToPost','When to Post')}</label>
                   <div className="flex p-1 bg-slate-100 dark:bg-gray-800 rounded-lg gap-1">
-                    {[['now','Post Now'],['later','Schedule for Later']].map(([v,l])=>(
+                    {[['now',t('marketing.postNow','Post Now')],['later',t('marketing.scheduleForLater','Schedule for Later')]].map(([v,l])=>(
                       <button key={v} onClick={()=>setSchedMode(v)} className={`${SEG_BASE} ${schedMode===v?SEG_ON:SEG_OFF}`}>{l}</button>
                     ))}
                   </div>
                   {schedMode==='later'&&<DateTimePicker value={schedAt} onChange={setSchedAt}/>}
                   {schedMode==='later'&&(
                     <p className="text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2">
-                      ✓ Buffer will publish this at the scheduled time — you can close this page safely.
+                      {t('marketing.scheduleHint','✓ Buffer will publish this at the scheduled time — you can close this page safely.')}
                     </p>
                   )}
                 </div>
@@ -1489,13 +1492,13 @@ export default function MarketingGenerator() {
                   disabled={!step1Done||!step2Done||pubState==='posting'||pubState==='done'||imgLoading||vidLoading||musicLoading}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                   {pubState==='posting'?<Loader2 size={15} className="animate-spin"/>:pubState==='done'?<Check size={15}/>:<Send size={15}/>}
-                  {pubState==='posting'?(schedMode==='later'?'Scheduling…':'Posting…'):pubState==='done'?(schedMode==='later'?'Scheduled in Buffer!':'Posted to Buffer!'):schedMode==='later'?'Schedule Post':'Post to Buffer'}
+                  {pubState==='posting'?(schedMode==='later'?t('marketing.scheduling','Scheduling…'):t('marketing.posting','Posting…')):pubState==='done'?(schedMode==='later'?t('marketing.scheduledInBuffer','Scheduled in Buffer!'):t('marketing.postedToBuffer','Posted to Buffer!')):schedMode==='later'?t('marketing.schedulePost','Schedule Post'):t('marketing.postToBuffer','Post to Buffer')}
                 </button>
 
                 {pubState==='done'&&(
                   <button onClick={()=>{setPubState('idle');setPubError(null);}}
                     className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-gray-200 transition-colors">
-                    <RefreshCw size={12}/> Post to another platform
+                    <RefreshCw size={12}/> {t('marketing.postAnother','Post to another platform')}
                   </button>
                 )}
               </div>
@@ -1592,8 +1595,8 @@ export default function MarketingGenerator() {
                 <div className="flex flex-col items-center justify-center py-24 gap-4">
                   <Sparkles size={48} strokeWidth={1.5} className="text-slate-300 dark:text-gray-600"/>
                   <div className="text-center">
-                    <p className="text-sm font-medium text-slate-500 dark:text-gray-400">Your content preview will appear here</p>
-                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">Fill in Step 1 and click Generate Content</p>
+                    <p className="text-sm font-medium text-slate-500 dark:text-gray-400">{t('marketing.previewWillAppear', 'Your content preview will appear here')}</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">{t('marketing.previewSub', 'Fill in Step 1 and click Generate Content')}</p>
                   </div>
                 </div>
               )}

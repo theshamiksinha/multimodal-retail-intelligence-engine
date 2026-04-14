@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Upload, Loader2, Check, X, Trash2, Plus, ScanText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 
@@ -47,6 +48,7 @@ function Field({ label, value, onChange, type = 'text', options }) {
 }
 
 export default function OCRInventoryAdd({ onProductsAdded }) {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState('idle'); // idle | processing | confirm | success | error
   const [ocrText, setOcrText] = useState('');
   const [products, setProducts] = useState([]);
@@ -144,10 +146,10 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
         </div>
         <div>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
-            OCR Inventory Entry
+            {t('inventory.ocrEntryTitle', 'OCR Inventory Entry')}
           </h3>
           <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-0.5">
-            Upload a note, label, bill, or handwritten stock sheet
+            {t('inventory.ocrEntrySub', 'Upload a note, label, bill, or handwritten stock sheet')}
           </p>
         </div>
       </div>
@@ -155,11 +157,11 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
       {phase === 'idle' && (
         <div className="flex flex-col items-center gap-4 py-6 flex-1 justify-center">
           <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
-            Example: &ldquo;Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays&rdquo;
+            {t('inventory.ocrExample', 'Example: “Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays”')}
           </p>
           <label className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition shadow-md hover:shadow-lg active:scale-95">
             <Upload size={16} />
-            Upload Image
+            {t('inventory.uploadImage', 'Upload Image')}
             <input
               type="file"
               accept="image/*"
