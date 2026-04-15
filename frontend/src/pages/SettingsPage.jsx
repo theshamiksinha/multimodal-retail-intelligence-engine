@@ -62,7 +62,7 @@ function Toggle({ enabled, onChange }) {
     <button
       onClick={() => onChange(!enabled)}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-        enabled ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-gray-700'
+        enabled ? 'bg-blue-600' : 'bg-slate-200 dark:bg-gray-700'
       }`}
     >
       <span
@@ -127,7 +127,7 @@ export default function SettingsPage() {
       {/* Store name */}
       <div className={`${CARD} p-5`}>
         <div className="flex items-center gap-2 mb-4">
-          <Store size={15} className="text-indigo-500" />
+          <Store size={15} className="text-blue-500" />
           <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">Store Name</h3>
         </div>
         <input
@@ -140,14 +140,14 @@ export default function SettingsPage() {
             border border-slate-200 dark:border-gray-700
             text-slate-800 dark:text-white
             placeholder:text-slate-400 dark:placeholder:text-gray-600
-            focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
 
       {/* Language */}
       <div className={`${CARD} p-5`}>
         <div className="flex items-center gap-2 mb-4">
-          <Globe size={15} className="text-indigo-500" />
+          <Globe size={15} className="text-blue-500" />
           <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t('settings.language')}</h3>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -155,23 +155,23 @@ export default function SettingsPage() {
             onClick={() => { setSaved(false); setLang('en'); }}
             className={`flex-1 px-4 py-3 flex justify-between items-center rounded-xl border transition-all duration-150 text-left ${
               lang === 'en'
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-800 dark:text-white'
-                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-800 dark:text-white'
+                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
             }`}
           >
             <span className="text-sm font-medium">English</span>
-            {lang === 'en' && <Check size={14} className="text-indigo-500" />}
+            {lang === 'en' && <Check size={14} className="text-blue-500" />}
           </button>
           <button
             onClick={() => { setSaved(false); setLang('hi'); }}
             className={`flex-1 px-4 py-3 flex justify-between items-center rounded-xl border transition-all duration-150 text-left ${
               lang === 'hi'
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-800 dark:text-white'
-                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-800 dark:text-white'
+                : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
             }`}
           >
             <span className="text-sm font-medium">हिंदी (Hindi)</span>
-            {lang === 'hi' && <Check size={14} className="text-indigo-500" />}
+            {lang === 'hi' && <Check size={14} className="text-blue-500" />}
           </button>
         </div>
       </div>
@@ -180,7 +180,7 @@ export default function SettingsPage() {
       {SECTIONS.map(({ id, icon: Icon, label, options }) => (
         <div key={id} className={`${CARD} p-5`}>
           <div className="flex items-center gap-2 mb-4">
-            <Icon size={15} className="text-indigo-500" />
+            <Icon size={15} className="text-blue-500" />
             <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100">{t(`settings.sections.${id}`, label)}</h3>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
@@ -192,19 +192,19 @@ export default function SettingsPage() {
                   onClick={() => set(id, opt.value)}
                   className={`text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
                     active
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-800 dark:text-white'
-                      : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-800 dark:text-white'
+                      : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium">{t(`settings.options.${opt.value}.label`, opt.label)}</p>
-                      <p className={`text-xs mt-0.5 ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                      <p className={`text-xs mt-0.5 ${active ? 'text-blue-600 dark:text-blue-300' : 'text-slate-400 dark:text-gray-500'}`}>
                         {t(`settings.options.${opt.value}.sub`, opt.sub)}
                       </p>
                     </div>
                     {active && (
-                      <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={9} className="text-white" />
                       </div>
                     )}
@@ -226,8 +226,8 @@ export default function SettingsPage() {
           {FEATURE_TOGGLES.map(({ key, icon: Icon, label, sub }) => (
             <div key={key} className="flex items-center justify-between gap-4 px-4 py-3.5 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${features[key] ? 'bg-indigo-50 dark:bg-indigo-950/40' : 'bg-slate-100 dark:bg-gray-800'}`}>
-                  <Icon size={14} className={features[key] ? 'text-indigo-500' : 'text-slate-400 dark:text-gray-500'} />
+                <div className={`p-2 rounded-xl ${features[key] ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-slate-100 dark:bg-gray-800'}`}>
+                  <Icon size={14} className={features[key] ? 'text-blue-500' : 'text-slate-400 dark:text-gray-500'} />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{t(`settings.features.${key}.label`, label)}</p>
@@ -245,7 +245,7 @@ export default function SettingsPage() {
         className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all ${
           saved
             ? 'bg-green-600 text-white'
-            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
         }`}
       >
         {saved ? <Check size={15} /> : <Save size={15} />}

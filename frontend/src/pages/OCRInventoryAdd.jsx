@@ -13,7 +13,7 @@ function Field({ label, value, onChange, type = 'text', options }) {
   const base =
     'w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-gray-700 ' +
     'bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 ' +
-    'focus:outline-none focus:ring-2 focus:ring-indigo-400 transition';
+    'focus:outline-none focus:ring-2 focus:ring-blue-400 transition';
 
   if (options) {
     return (
@@ -141,8 +141,8 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
   return (
     <div className={`${CARD} p-5`}>
       <div className="flex items-center gap-2.5 mb-5">
-        <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
-          <ScanText size={16} className="text-indigo-600 dark:text-indigo-400" />
+        <div className="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-xl">
+          <ScanText size={16} className="text-blue-600 dark:text-blue-400" />
         </div>
         <div>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
@@ -159,7 +159,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
           <p className="text-xs text-slate-400 dark:text-gray-500 text-center max-w-xs">
             {t('inventory.ocrExample', 'Example: “Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays”')}
           </p>
-          <label className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition shadow-md hover:shadow-lg active:scale-95">
+          <label className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-medium transition shadow-md hover:shadow-lg active:scale-95">
             <Upload size={16} />
             {t('inventory.uploadImage', 'Upload Image')}
             <input
@@ -174,7 +174,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
 
       {phase === 'processing' && (
         <div className="flex flex-col items-center gap-3 py-8">
-          <Loader2 size={28} className="text-indigo-500 animate-spin" />
+          <Loader2 size={28} className="text-blue-500 animate-spin" />
           <p className="text-sm text-slate-500 dark:text-gray-400">
             Reading image and extracting products…
           </p>
@@ -196,7 +196,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
                 className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50/50 dark:bg-gray-800/40 p-4"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
                     Product {i + 1}
                   </span>
                   <button
@@ -259,7 +259,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
 
           <button
             onClick={addBlankProduct}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
           >
             <Plus size={13} /> Add another product manually
           </button>
@@ -277,7 +277,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
               <X size={13} /> Cancel
             </button>
 
-            <label className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors cursor-pointer">
+            <label className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-900/50 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer">
               <Upload size={13} /> Replace image
               <input
                 type="file"
@@ -290,7 +290,7 @@ export default function OCRInventoryAdd({ onProductsAdded }) {
             <button
               disabled={products.length === 0}
               onClick={confirmAdd}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-gray-700 text-white text-xs font-medium transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-gray-700 text-white text-xs font-medium transition-colors"
             >
               <Check size={13} /> Confirm & Add
             </button>

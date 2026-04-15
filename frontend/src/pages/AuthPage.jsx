@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import {
-  Store, ChevronRight, ChevronLeft, Check,
+  ChevronRight, ChevronLeft, Check,
   Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe,
 } from 'lucide-react';
+import appLogo   from '../assets/app_logo.png';
+import mascotImg from '../assets/mascot_for_chatbot.png';
 import { SETUP_KEY } from '../components/SetupWizard';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -62,8 +64,8 @@ function PageShell({ children }) {
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center p-6
-      bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-200
-      dark:from-gray-950 dark:via-indigo-950 dark:to-gray-950">
+      bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200
+      dark:from-gray-950 dark:via-blue-950 dark:to-gray-950">
 
       {/* Theme toggle */}
       <button
@@ -79,13 +81,21 @@ function PageShell({ children }) {
       </button>
 
       {/* Brand mark */}
-      <div className="flex items-center gap-2.5 mb-10">
-        <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-          <Store size={17} className="text-white" />
+      <div className="flex items-center gap-3 mb-10 animate-fade-in">
+        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 p-2 shrink-0">
+          <img
+            src={appLogo}
+            alt="Munim AI"
+            className="w-full h-full object-contain"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
         </div>
-        <span className="font-semibold text-sm tracking-tight text-slate-800 dark:text-white">
-          Retail Intel
-        </span>
+        <div className="leading-tight">
+          <p className="font-bold text-base tracking-tight text-slate-800 dark:text-white">
+            Munim <span className="text-orange-500">AI</span>
+          </p>
+          <p className="text-[10px] text-slate-400 dark:text-gray-500 font-medium tracking-wide">SME Retail Platform</p>
+        </div>
       </div>
 
       {children}
@@ -97,24 +107,43 @@ function PageShell({ children }) {
 function WelcomeView({ onLogin, onSetup }) {
   return (
     <div className="w-full max-w-sm text-center">
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Hello there!</h1>
-      <p className="text-indigo-600 dark:text-indigo-300 text-sm mb-10">
-        Your AI-powered retail command centre awaits.
+      {/* Mascot */}
+      <div className="relative w-28 h-28 mx-auto mb-5 animate-fade-in-up delay-100">
+        <div className="w-full h-full rounded-full overflow-hidden
+          bg-white border-4 border-blue-600 shadow-xl shadow-blue-500/20">
+          <img
+            src={mascotImg}
+            alt="Munim Ji"
+            className="w-full h-full object-cover object-top"
+            style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(8px)' }}
+          />
+        </div>
+        {/* Orange AI badge */}
+        <span className="absolute bottom-1 right-1 w-7 h-7 bg-orange-500 rounded-full
+          border-2 border-white dark:border-gray-900
+          flex items-center justify-center text-[10px] font-bold text-white shadow-sm animate-pop-in delay-300">
+          AI
+        </span>
+      </div>
+
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Namaste! 🙏</h1>
+      <p className="text-blue-600 dark:text-blue-300 text-sm mb-10 font-medium">
+        Meet <span className="font-bold">Munim Ji</span> — your AI-powered retail advisor.
       </p>
 
       <div className="space-y-3">
         <button
           onClick={onSetup}
           className="w-full flex items-center justify-between px-5 py-4
-            bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl
-            text-sm font-medium transition-all shadow-lg shadow-indigo-500/30 active:scale-[0.98]"
+            bg-blue-600 hover:bg-blue-700 text-white rounded-2xl
+            text-sm font-medium transition-all shadow-lg shadow-blue-500/30 active:scale-[0.98]"
         >
           <div className="text-left">
             <p className="font-semibold">New here? Set up your store</p>
-            <p className="text-indigo-200 text-xs mt-0.5 font-normal">Takes about 30 seconds</p>
+            <p className="text-blue-200 text-xs mt-0.5 font-normal">Takes about 30 seconds</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <Sparkles size={14} className="text-indigo-200" />
+            <Sparkles size={14} className="text-blue-200" />
             <ChevronRight size={15} />
           </div>
         </button>
@@ -149,7 +178,7 @@ function LoginView({ onBack, onDone }) {
     border border-slate-200 dark:border-gray-700
     text-slate-800 dark:text-white
     placeholder:text-slate-400 dark:placeholder:text-gray-600
-    focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500`;
+    focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`;
 
   return (
     <div className="w-full max-w-sm">
@@ -165,8 +194,8 @@ function LoginView({ onBack, onDone }) {
 
       <button
         onClick={onDone}
-        className="w-full mt-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white
-          text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/30 active:scale-[0.98]"
+        className="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 text-white
+          text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-blue-500/30 active:scale-[0.98]"
       >
         Sign In
       </button>
@@ -236,7 +265,7 @@ function SetupView({ onBack, onDone }) {
       <div className="flex gap-1.5 mb-8">
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-            i <= step ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-gray-800'
+            i <= step ? 'bg-blue-500' : 'bg-slate-200 dark:bg-gray-800'
           }`} />
         ))}
       </div>
@@ -246,7 +275,7 @@ function SetupView({ onBack, onDone }) {
         {isNameStep ? (
           <>
             <div className="flex items-center gap-2 mb-1">
-              <Store size={14} className="text-indigo-500" />
+              <Store size={14} className="text-blue-500" />
               <span className={hintCls}>{t('wizard.steps.storeName.hint', 'Your store identity')}</span>
             </div>
             <h2 className={titleCls}>{t('wizard.steps.storeName.question', "What's your store called?")}</h2>
@@ -262,13 +291,13 @@ function SetupView({ onBack, onDone }) {
                 border border-slate-200 dark:border-gray-700
                 text-slate-800 dark:text-white
                 placeholder:text-slate-400 dark:placeholder:text-gray-600
-                focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </>
         ) : (
           <>
             <div className="flex items-center gap-2 mb-1">
-              {optStep && <optStep.icon size={14} className="text-indigo-500" />}
+              {optStep && <optStep.icon size={14} className="text-blue-500" />}
               <span className={hintCls}>{t(`wizard.steps.${optStep?.id}.hint`, optStep?.hint)}</span>
             </div>
             <h2 className={titleCls}>{t(`wizard.steps.${optStep?.id}.question`, optStep?.question)}</h2>
@@ -284,19 +313,19 @@ function SetupView({ onBack, onDone }) {
                     }}
                     className={`text-left px-4 py-3.5 rounded-xl border transition-all duration-150 ${
                       active
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-900 dark:text-white'
-                        : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-gray-500'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-900 dark:text-white'
+                        : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-sm font-medium">{getOptionLabel(optStep.id, opt)}</p>
-                        <p className={`text-xs mt-0.5 ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-gray-500'}`}>
+                        <p className={`text-xs mt-0.5 ${active ? 'text-blue-600 dark:text-blue-300' : 'text-slate-400 dark:text-gray-500'}`}>
                           {getOptionSub(optStep.id, opt)}
                         </p>
                       </div>
                       {active && (
-                        <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                           <Check size={9} className="text-white" />
                         </div>
                       )}
@@ -323,7 +352,7 @@ function SetupView({ onBack, onDone }) {
         <button
           onClick={next}
           disabled={!canNext}
-          className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700
             disabled:opacity-40 disabled:cursor-not-allowed
             text-white text-sm font-medium rounded-xl transition-colors"
         >

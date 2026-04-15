@@ -1,7 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart } from 'lucide-react';
 import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInventoryCsv, deleteInventoryFile, getSalesFileInfo, uploadSalesCsv, deleteSalesFile } from '../api';
+
+const PERIODS = [
+  { key: 'daily',   label: 'Daily',   days: 7  },
+  { key: 'weekly',  label: 'Weekly',  days: 28 },
+  { key: 'monthly', label: 'Monthly', days: 90 },
+];
+
+function PeriodFilter({ period, onChange }) {
+  return (
+    <div className="flex gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-gray-800">
+      {PERIODS.map(p => (
+        <button key={p.key} onClick={() => onChange(p.key)}
+          className={`period-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            period === p.key
+              ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-sm'
+              : 'text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+          }`}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import VoiceInventoryAdd from './VoiceInventoryAdd';
@@ -99,7 +122,7 @@ function CsvInventoryUpload({ onUploaded }) {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-indigo-400 hover:text-indigo-500 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors disabled:opacity-50"
             >
               {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
               {uploading ? 'Uploading…' : 'Replace with a new file'}
@@ -243,6 +266,7 @@ export default function InventoryInsights() {
   const [inventory, setInventory] = useState(null);
   const [sales, setSales]         = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [period, setPeriod]       = useState('monthly');
 
   const fetchData = () => {
     Promise.all([
@@ -257,6 +281,11 @@ export default function InventoryInsights() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const periodDays = useMemo(() => PERIODS.find(p => p.key === period)?.days ?? 90, [period]);
+
+  const filteredTrends = useMemo(() =>
+    sales?.trends?.slice(-periodDays) || [], [sales, periodDays]);
+
   const axisColor   = dark ? '#6b7280' : '#94a3b8';
   const tooltipStyle = dark
     ? { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', borderRadius: 10 }
@@ -265,7 +294,7 @@ export default function InventoryInsights() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-80">
-        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -276,6 +305,14 @@ export default function InventoryInsights() {
 
   return (
     <div className="space-y-5">
+      {/* Period filter */}
+      <div className="flex items-center justify-between animate-fade-in-up">
+        <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">
+          Inventory &amp; Sales Overview
+        </p>
+        <PeriodFilter period={period} onChange={setPeriod} />
+      </div>
+
       {showAdvanced && (
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-5`}>
           {showVoice && <VoiceInventoryAdd onProductsAdded={fetchData} />}
@@ -293,8 +330,8 @@ export default function InventoryInsights() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className={`${CARD} p-5`}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
-                  <Package size={15} className="text-indigo-600 dark:text-indigo-400" />
+                <div className="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-xl">
+                  <Package size={15} className="text-blue-600 dark:text-blue-400" />
                 </div>
                 <span className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">{t('inventory.totalProducts', 'Total Products')}</span>
               </div>
@@ -432,16 +469,49 @@ export default function InventoryInsights() {
         </div>
       )}
 
-      {/* Slow movers chart — only when sales data exists */}
+      {/* Revenue trend for period */}
+      {filteredTrends.length > 0 && (
+        <div className={`${CARD} p-5`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
+              Revenue Trend
+              <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">
+                ({period === 'daily' ? 'last 7 days' : period === 'weekly' ? 'last 4 weeks' : 'last 90 days'})
+              </span>
+            </h3>
+            <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+              ₹{filteredTrends.reduce((s, d) => s + (d.revenue || 0), 0).toLocaleString('en-IN')}
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={filteredTrends} barSize={period === 'daily' ? 20 : period === 'weekly' ? 10 : 5}>
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                tickFormatter={v => v ? v.slice(5) : ''} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+              <Tooltip contentStyle={tooltipStyle}
+                formatter={v => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
+              <Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Slow movers chart */}
       {sales?.slow_movers && (
         <div className={`${CARD} p-5`}>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Slowest Moving Products (90 Days)</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">
+            Slowest Moving Products
+            <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">
+              ({period === 'daily' ? 'last 7 days' : period === 'weekly' ? 'last 4 weeks' : 'last 90 days'})
+            </span>
+          </h3>
           <ResponsiveContainer width="100%" height={230}>
             <BarChart data={sales.slow_movers}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="quantity" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="quantity" fill="#F97316" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

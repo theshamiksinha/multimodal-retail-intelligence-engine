@@ -63,6 +63,7 @@ temp/
 *.tmp
 Project_Idea.pdf
 data_copy
+changes_requested_by_pankhuri
 
 # Package lock files (uncomment only if needed)
 # package-lock.json

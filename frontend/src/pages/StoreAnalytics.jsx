@@ -1,4 +1,27 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
+const ANALYTICS_PERIODS = [
+  { key: 'daily',   label: 'Daily',   days: 7  },
+  { key: 'weekly',  label: 'Weekly',  days: 28 },
+  { key: 'monthly', label: 'Monthly', days: 90 },
+];
+
+function PeriodFilter({ period, onChange }) {
+  return (
+    <div className="flex gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-gray-800">
+      {ANALYTICS_PERIODS.map(p => (
+        <button key={p.key} onClick={() => onChange(p.key)}
+          className={`period-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            period === p.key
+              ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-sm'
+              : 'text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+          }`}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 import {
   Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle,
   Camera, Upload, Play, Loader2, CheckCircle, Footprints,
@@ -35,6 +58,7 @@ export default function StoreAnalytics() {
   const [trajLoading, setTrajLoading]   = useState(false);
   const [recordedAt, setRecordedAt]     = useState('');
   const [pendingUpload, setPendingUpload] = useState(null); // { camId, file, recordedAt }
+  const [period, setPeriod]             = useState('monthly');
   const pollRef                         = useRef(null);
 
   const loadData = async () => {
@@ -159,11 +183,11 @@ export default function StoreAnalytics() {
     <div className="space-y-5">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
-            className="p-2 text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 text-slate-400 dark:text-gray-500 hover:text-blue-600 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-800 transition-all"
           >
             <RefreshCw size={15} />
           </button>
@@ -174,10 +198,10 @@ export default function StoreAnalytics() {
                 <button
                   key={floor.session_id}
                   onClick={() => setSelectedFloor(floor)}
-                  className={`px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5 ${
+                  className={`px-4 py-2 rounded-lg text-sm transition-all flex items-center gap-1.5 ${
                     selectedFloor?.session_id === floor.session_id
-                      ? 'bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 shadow-sm font-medium'
-                      : 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
+                      ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-sm font-semibold'
+                      : 'text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
                   }`}
                 >
                   {floor.floor_name}
@@ -192,13 +216,16 @@ export default function StoreAnalytics() {
           )}
         </div>
 
-        <button
-          onClick={() => setShowSetup(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <Plus size={15} />
-          {t('analytics.addFloor', 'Add Floor')}
-        </button>
+        <div className="flex items-center gap-3">
+          <PeriodFilter period={period} onChange={setPeriod} />
+          <button
+            onClick={() => setShowSetup(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95"
+          >
+            <Plus size={15} />
+            {t('analytics.addFloor', 'Add Floor')}
+          </button>
+        </div>
       </div>
 
       {/* Floor action bar */}
@@ -270,7 +297,7 @@ export default function StoreAnalytics() {
           </p>
           <button
             onClick={() => setShowSetup(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             <Plus size={15} /> {t('analytics.addFirst', 'Add Your First Floor')}
           </button>
@@ -292,7 +319,7 @@ export default function StoreAnalytics() {
 
             {isProcessing ? (
               <div className="h-64 bg-slate-50 dark:bg-gray-800 rounded-xl flex flex-col items-center justify-center gap-3">
-                <Loader2 size={28} className="animate-spin text-indigo-500" />
+                <Loader2 size={28} className="animate-spin text-blue-500" />
                 <p className="text-sm text-slate-600 dark:text-gray-300 font-medium">{t('analytics.runningCv', 'Running CV pipeline…')}</p>
                 <p className="text-xs text-slate-400 dark:text-gray-500">{t('analytics.yoloPoll', 'YOLOv8 detection · polling every 3 s')}</p>
               </div>
@@ -328,7 +355,7 @@ export default function StoreAnalytics() {
           {/* Camera feeds */}
           <div className={`${CARD} p-5 flex flex-col gap-4`}>
             <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-2 shrink-0">
-              <Camera size={14} className="text-indigo-500" /> {t('analytics.cameraFeeds', 'Camera Feeds')}
+              <Camera size={14} className="text-blue-500" /> {t('analytics.cameraFeeds', 'Camera Feeds')}
             </h3>
 
             {!selectedFloor.cameras?.length ? (
@@ -358,13 +385,13 @@ export default function StoreAnalytics() {
                         </div>
                         <span className="text-xs font-medium text-slate-700 dark:text-gray-300 flex-1 min-w-0 truncate">{cam.name}</span>
                         {isUploading ? (
-                          <span className="flex items-center gap-1 text-xs text-indigo-500 shrink-0">
+                          <span className="flex items-center gap-1 text-xs text-blue-500 shrink-0">
                             <Loader2 size={11} className="animate-spin" /> {t('analytics.uploading', 'Uploading')}
                           </span>
                         ) : (uploadDone || hasExisting) ? (
                           <div className="flex items-center gap-1.5 shrink-0">
                             <CheckCircle size={11} className="text-green-500" />
-                            <label className="text-xs text-slate-400 dark:text-gray-500 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
+                            <label className="text-xs text-slate-400 dark:text-gray-500 cursor-pointer hover:text-blue-500 underline underline-offset-2">
                               {t('analytics.replace', 'Replace')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                             </label>
                           </div>
@@ -373,7 +400,7 @@ export default function StoreAnalytics() {
                             <Upload size={11} /> {t('analytics.retry', 'Retry')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         ) : (
-                          <label className="flex items-center gap-1 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 shrink-0">
+                          <label className="flex items-center gap-1 text-xs text-blue-600 cursor-pointer hover:text-blue-800 shrink-0">
                             <Upload size={11} /> {t('analytics.upload', 'Upload')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         )}
@@ -386,14 +413,14 @@ export default function StoreAnalytics() {
                   {(() => {
                     const hasAnyVideo = selectedFloor.cameras.some(c => c.has_video || videoUploads[c.id]?.status === 'done');
                     if (isProcessing) return (
-                      <div className="flex items-center justify-center gap-2 py-2 text-sm text-indigo-500">
+                      <div className="flex items-center justify-center gap-2 py-2 text-sm text-blue-500">
                         <Loader2 size={14} className="animate-spin" /> {t('analytics.pipelineRunning', 'Pipeline running…')}
                       </div>
                     );
                     if (hasAnyVideo) return (
                       <button
                         onClick={handleRecalibrate}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
                       >
                         <Play size={14} />
                         {selectedFloor.status === 'done' ? t('analytics.recalibrateHeatmap', 'Recalibrate Heatmap') : t('analytics.generateHeatmap', 'Generate Heatmap')}
@@ -418,7 +445,7 @@ export default function StoreAnalytics() {
       {activeTab === 'heatmap' && selectedFloor?.status === 'done' && selectedFloor.zones?.length > 0 && (
         <div className={`${CARD} p-5`}>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-            <Clock size={14} className="text-indigo-500" /> {t('analytics.zoneSummary', 'Camera Zone Summary')}
+            <Clock size={14} className="text-blue-500" /> {t('analytics.zoneSummary', 'Camera Zone Summary')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedFloor.zones.map((zone, i) => (
@@ -498,7 +525,7 @@ export default function StoreAnalytics() {
                 onChange={e => setPendingUpload(p => ({ ...p, recordedAt: e.target.value }))}
                 className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-gray-700
                   bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100
-                  focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-xs text-slate-400 dark:text-gray-500">
                 {t('analytics.preFilledNow', 'Pre-filled to now — edit if the footage is from a different time.')}
@@ -514,7 +541,7 @@ export default function StoreAnalytics() {
               </button>
               <button
                 onClick={confirmPendingUpload}
-                className="flex-1 py-2 text-sm rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+                className="flex-1 py-2 text-sm rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
               >
                 {t('analytics.upload', 'Upload')}
               </button>
@@ -658,7 +685,7 @@ function JourneysTab({ floor, trajectories, loading }) {
 
   if (loading) return (
     <div className={`${CARD} p-16 flex flex-col items-center gap-3`}>
-      <Loader2 size={24} className="animate-spin text-indigo-400" />
+      <Loader2 size={24} className="animate-spin text-blue-400" />
       <p className="text-sm text-slate-500 dark:text-gray-400">Loading journey data…</p>
     </div>
   );
@@ -678,7 +705,7 @@ function JourneysTab({ floor, trajectories, loading }) {
   const floorUrl = floor?.heatmap_url || floor?.floor_plan_url;
 
   const statCards = [
-    { label: 'Total Customers', value: customers.length,          icon: <Users size={14} className="text-indigo-400"/> },
+    { label: 'Total Customers', value: customers.length,          icon: <Users size={14} className="text-blue-400"/> },
     { label: 'Tracked Duration', value: fmt(duration),            icon: <Clock size={14} className="text-emerald-400"/> },
     { label: 'Cameras Used',    value: trajectories.num_cameras ?? '—', icon: <Camera size={14} className="text-amber-400"/> },
   ];
@@ -733,7 +760,7 @@ function JourneysTab({ floor, trajectories, loading }) {
                 </button>
                 <button
                   onClick={() => { if (playhead >= duration) setPlayhead(0); setIsPlaying(p => !p); }}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm">
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm">
                   {isPlaying ? <Pause size={16}/> : <Play size={16} className="ml-0.5"/>}
                 </button>
                 <button onClick={() => { setIsPlaying(false); setPlayhead(duration); }}
@@ -743,7 +770,7 @@ function JourneysTab({ floor, trajectories, loading }) {
                 <input
                   type="range" min={0} max={duration} step={0.1} value={playhead}
                   onChange={e => { setIsPlaying(false); setPlayhead(parseFloat(e.target.value)); }}
-                  className="flex-1 accent-indigo-600 cursor-pointer"
+                  className="flex-1 accent-blue-600 cursor-pointer"
                 />
                 <span className="text-xs font-mono text-slate-500 dark:text-gray-400 shrink-0">
                   {fmt(playhead)} / {fmt(duration)}
@@ -779,7 +806,7 @@ function JourneysTab({ floor, trajectories, loading }) {
               onClick={() => setHighlight(null)}
               className={`text-xs px-3 py-2 rounded-lg border transition-colors text-left ${
                 highlight === null
-                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold'
                   : 'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800'
               }`}>
               All customers

@@ -13,7 +13,7 @@ const CAM_COLORS = [
 const INPUT = `w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-gray-700
   bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100
   placeholder:text-slate-400 dark:placeholder:text-gray-500
-  focus:outline-none focus:ring-2 focus:ring-indigo-500`;
+  focus:outline-none focus:ring-2 focus:ring-blue-500`;
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -103,9 +103,9 @@ function StepUploadPlan({ onDone }) {
           onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
           onClick={() => !file && inputRef.current?.click()}
           className={`border-2 border-dashed rounded-2xl transition-colors ${
-            file ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/30 dark:bg-indigo-950/10'
-            : dragging ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 cursor-copy'
-            : 'border-slate-200 dark:border-gray-700 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-gray-800 cursor-pointer'
+            file ? 'border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-950/10'
+            : dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 cursor-copy'
+            : 'border-slate-200 dark:border-gray-700 hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-gray-800 cursor-pointer'
           }`}
         >
           {preview ? (
@@ -132,7 +132,7 @@ function StepUploadPlan({ onDone }) {
       <button
         onClick={handleSubmit}
         disabled={uploading || !file || !floorName.trim()}
-        className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
         {uploading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
         {uploading ? 'Uploading…' : 'Continue to Camera Placement'}
@@ -272,7 +272,7 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
           <div
             ref={containerRef}
             onClick={handleMapClick}
-            className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-indigo-200 dark:border-indigo-800 cursor-crosshair select-none bg-slate-50 dark:bg-gray-800"
+            className="relative w-full h-full rounded-2xl overflow-hidden border-2 border-blue-200 dark:border-blue-800 cursor-crosshair select-none bg-slate-50 dark:bg-gray-800"
           >
             <img src={floorPlanUrl} alt="Floor plan" className="w-full h-full object-contain block pointer-events-none" draggable={false} />
             <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 5, pointerEvents: 'none', overflow: 'visible' }}>
@@ -318,7 +318,7 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
                 <input
                   value={cam.name}
                   onChange={e => setCameras(prev => prev.map(c => c.id === cam.id ? { ...c, name: e.target.value } : c))}
-                  className="flex-1 min-w-0 px-2 py-1 border border-slate-200 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 min-w-0 px-2 py-1 border border-slate-200 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <button onClick={() => setCameras(prev => prev.filter(c => c.id !== cam.id))} className="text-slate-300 dark:text-gray-600 hover:text-red-400 shrink-0 transition-colors">
                   <Trash2 size={12} />
@@ -336,7 +336,7 @@ function StepPlaceCameras({ sessionId, floorPlanUrl, cameras, setCameras, onDone
         <button
           onClick={handleFinish}
           disabled={!cameras.length || saving}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
           {saving ? 'Saving…' : 'Save & Finish'}
@@ -406,7 +406,7 @@ export default function FloorPlanSetup({ onClose, onComplete, editSession }) {
         {/* Progress bar */}
         <div className="flex px-6 pt-3 gap-1.5 shrink-0">
           {STEPS.map((_, i) => (
-            <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= displayStep ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-gray-700'}`} />
+            <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= displayStep ? 'bg-blue-500' : 'bg-slate-200 dark:bg-gray-700'}`} />
           ))}
         </div>
 

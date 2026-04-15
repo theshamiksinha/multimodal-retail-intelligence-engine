@@ -88,7 +88,7 @@ export default function SetupWizard({ onDone }) {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
             <Store size={17} className="text-white" />
           </div>
           <div>
@@ -103,7 +103,7 @@ export default function SetupWizard({ onDone }) {
             <div
               key={i}
               className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-                i <= step ? 'bg-indigo-500' : 'bg-gray-800'
+                i <= step ? 'bg-blue-500' : 'bg-gray-800'
               }`}
             />
           ))}
@@ -112,7 +112,7 @@ export default function SetupWizard({ onDone }) {
         {/* Question card */}
         <div className="bg-gray-900 rounded-2xl border border-gray-800 p-7">
           <div className="flex items-center gap-2.5 mb-1">
-            <Icon size={16} className="text-indigo-400" />
+            <Icon size={16} className="text-blue-400" />
             <span className="text-xs text-gray-500">{current.hint}</span>
           </div>
           <h2 className="text-white text-lg font-semibold mb-6 leading-snug">
@@ -128,19 +128,19 @@ export default function SetupWizard({ onDone }) {
                   onClick={() => selectOption(opt.value)}
                   className={`text-left px-4 py-3.5 rounded-xl border transition-all duration-150 ${
                     active
-                      ? 'border-indigo-500 bg-indigo-600/20 text-white'
+                      ? 'border-blue-500 bg-blue-600/20 text-white'
                       : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-800'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium">{opt.label}</p>
-                      <p className={`text-xs mt-0.5 ${active ? 'text-indigo-300' : 'text-gray-500'}`}>
+                      <p className={`text-xs mt-0.5 ${active ? 'text-blue-300' : 'text-gray-500'}`}>
                         {opt.sub}
                       </p>
                     </div>
                     {active && (
-                      <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={9} className="text-white" />
                       </div>
                     )}
@@ -167,7 +167,7 @@ export default function SetupWizard({ onDone }) {
           <button
             onClick={next}
             disabled={!chosen}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700
+            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700
               disabled:opacity-40 disabled:cursor-not-allowed
               text-white text-sm font-medium rounded-xl transition-colors"
           >

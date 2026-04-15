@@ -26,7 +26,7 @@ function Field({ label, value, onChange, type = 'text', options }) {
   const base =
     'w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 dark:border-gray-700 ' +
     'bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 ' +
-    'focus:outline-none focus:ring-2 focus:ring-indigo-400 transition';
+    'focus:outline-none focus:ring-2 focus:ring-blue-400 transition';
 
   if (options) {
     return (
@@ -196,8 +196,8 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">
-            <Volume2 size={16} className="text-indigo-600 dark:text-indigo-400" />
+          <div className="p-2 bg-blue-50 dark:bg-blue-950/40 rounded-xl">
+            <Volume2 size={16} className="text-blue-600 dark:text-blue-400" />
           </div>
           <div>
             <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('inventory.voiceEntryTitle', 'Voice Inventory Entry')}</h3>
@@ -208,7 +208,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
         </div>
 
         {phase === 'confirm' && (
-          <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-medium">
+          <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full text-xs font-medium">
             {products.length} product{products.length !== 1 ? 's' : ''} detected
           </span>
         )}
@@ -225,7 +225,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
           </p>
           <button
             onClick={startRecording}
-            className="group relative flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
+            className="group relative flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-medium transition-all shadow-md hover:shadow-lg active:scale-95"
           >
             <Mic size={16} />
             {t('inventory.startRecording', 'Start Recording')}
@@ -259,7 +259,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
       {/* ── PROCESSING ── */}
       {phase === 'processing' && (
         <div className="flex flex-col items-center gap-3 py-8">
-          <Loader2 size={28} className="text-indigo-500 animate-spin" />
+          <Loader2 size={28} className="text-blue-500 animate-spin" />
           <p className="text-sm text-slate-500 dark:text-gray-400">Transcribing &amp; parsing…</p>
         </div>
       )}
@@ -285,7 +285,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
                 className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50/50 dark:bg-gray-800/40 p-4"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
                     Product {i + 1}
                   </span>
                   <button
@@ -322,7 +322,7 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
           {/* add another manually */}
           <button
             onClick={addBlankProduct}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-slate-300 dark:border-gray-600 text-xs text-slate-400 dark:text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
           >
             <Plus size={13} /> Add another product manually
           </button>
@@ -337,14 +337,14 @@ export default function VoiceInventoryAdd({ onProductsAdded }) {
             </button>
             <button
               onClick={() => startRecording()}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-900/50 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
             >
               <Mic size={13} /> Re-record
             </button>
             <button
               disabled={products.length === 0}
               onClick={confirmAdd}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-xs font-semibold transition-all active:scale-95 shadow-sm"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold transition-all active:scale-95 shadow-sm"
             >
               <Check size={14} /> Confirm &amp; Add {products.length > 0 ? `(${products.length})` : ''}
             </button>

@@ -22,10 +22,10 @@ const runAutoCampaign        = (d) => axios.post('/api/marketing/auto-campaign',
 const INPUT = `w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-gray-700
   bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100
   placeholder:text-slate-400 dark:placeholder:text-gray-500
-  focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors`;
+  focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`;
 const CARD     = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm';
 const SEG_BASE = 'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none';
-const SEG_ON   = 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm';
+const SEG_ON   = 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-300 shadow-sm';
 const SEG_OFF  = 'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200';
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ function DateTimePicker({ value, onChange }) {
           {Array.from({length:60},(_,i)=>i).map(mm=><option key={mm} value={mm}>{pad(mm)}</option>)}
         </select>
       </div>
-      <p className="text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg px-3 py-2">
+      <p className="text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 rounded-lg px-3 py-2">
         {new Date(value).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})} at{' '}
         {new Date(value).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}
       </p>
@@ -217,13 +217,13 @@ function CalendarView({ history, selectedDay, onSelectDay, rangeStart, rangeEnd,
             <button key={day}
               onClick={() => rangeMode ? onRangeClick(ds) : onSelectDay(isSel?null:ds)}
               className={`flex flex-col items-center pt-1 pb-1 rounded-xl min-h-[50px] transition-all
-                ${isSel?'bg-indigo-100 dark:bg-indigo-900/30 ring-2 ring-indigo-400':''}
+                ${isSel?'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-400':''}
                 ${inRange && !isRangeStart && !isRangeEnd ? 'bg-violet-50 dark:bg-violet-950/20' : ''}
                 ${isRangeStart||isRangeEnd ? 'bg-violet-200 dark:bg-violet-800/40 ring-2 ring-violet-400' : ''}
-                ${isTd&&!isSel&&!inRange?'ring-2 ring-indigo-500':''}
+                ${isTd&&!isSel&&!inRange?'ring-2 ring-blue-500':''}
                 ${!isSel&&!inRange&&!isRangeStart&&!isRangeEnd?'hover:bg-slate-50 dark:hover:bg-gray-800':''}`}>
               <span className={`text-xs font-semibold leading-none
-                ${isTd?'text-indigo-600 dark:text-indigo-400':
+                ${isTd?'text-blue-600 dark:text-blue-400':
                   isRangeStart||isRangeEnd?'text-violet-700 dark:text-violet-300':
                   'text-slate-700 dark:text-gray-300'}`}>{day}</span>
               {ens.length>0&&<div className="flex flex-wrap gap-0.5 mt-1 justify-center px-0.5">
@@ -269,7 +269,7 @@ function DayDetail({ dateStr, history, onDelete, onScheduleForDay }) {
         </h3>
         {isFuture && (
           <button onClick={() => onScheduleForDay(dateStr)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
             <Plus size={12}/> Schedule post
           </button>
         )}
@@ -423,8 +423,8 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(PLATFORMS).map(([k,cfg]) => { const Icon=cfg.icon; const on=form.platform===k; return (
                     <button key={k} onClick={()=>{set('platform',k); if(!cfg.types.includes(form.post_type)) set('post_type','post');}}
-                      className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-semibold transition-all ${on?'border-indigo-500 bg-indigo-50 text-indigo-700':'border-slate-200 text-slate-500 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
-                      <Icon size={13} className={on?'text-indigo-600':cfg.color}/>{cfg.label}
+                      className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-semibold transition-all ${on?'border-blue-500 bg-blue-50 text-blue-700':'border-slate-200 text-slate-500 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
+                      <Icon size={13} className={on?'text-blue-600':cfg.color}/>{cfg.label}
                     </button>
                   );})}
                 </div>
@@ -462,7 +462,7 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
                 <DateTimePicker value={schedAt} onChange={setSchedAt}/>
               </div>
               <button onClick={handleGenerate} disabled={step==='generating'||!form.product_name.trim()}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
                 {step==='generating'?<Loader2 size={15} className="animate-spin"/>:<Sparkles size={15}/>}
                 {step==='generating'?'Generating…':'Generate & Preview'}
               </button>
@@ -475,7 +475,7 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold text-slate-600 dark:text-gray-300">Preview</p>
-                  <button onClick={()=>setStep('form')} className="text-xs text-indigo-500 hover:text-indigo-600">← Edit</button>
+                  <button onClick={()=>setStep('form')} className="text-xs text-blue-500 hover:text-blue-600">← Edit</button>
                 </div>
 
                 {/* Image with regen button */}
@@ -499,13 +499,13 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
                 <div className="relative bg-slate-50 dark:bg-gray-800 rounded-xl p-3">
                   <p className="text-xs text-slate-700 dark:text-gray-200 leading-relaxed whitespace-pre-wrap line-clamp-4 pr-20">{result.caption}</p>
                   <button onClick={handleRegenCaption}
-                    className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-medium hover:bg-indigo-200 transition-colors">
+                    className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-medium hover:bg-blue-200 transition-colors">
                     <RotateCcw size={10}/> New caption
                   </button>
                 </div>
 
                 {result.hashtags?.length>0&&<div className="flex flex-wrap gap-1">
-                  {result.hashtags.slice(0,6).map((t,i)=><span key={i} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-medium">{t}</span>)}
+                  {result.hashtags.slice(0,6).map((t,i)=><span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-medium">{t}</span>)}
                   {result.hashtags.length>6&&<span className="text-[10px] text-slate-400">+{result.hashtags.length-6} more</span>}
                 </div>}
               </div>
@@ -541,7 +541,7 @@ function ScheduleFromCalendarModal({ dateStr, onClose, onScheduled }) {
                 <p className="font-semibold text-slate-800">Sent to Buffer!</p>
                 <p className="text-xs text-slate-400 mt-1">Buffer will publish this at the scheduled time.</p>
               </div>
-              <button onClick={onClose} className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">Done</button>
+              <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Done</button>
             </div>
           )}
         </div>
@@ -609,7 +609,7 @@ function AISuggestPanel({ onSelect }) {
       <button
         type="button"
         onClick={load}
-        className="flex items-center gap-1 text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+        className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
       >
         <Bot size={11}/> {t('marketing.botSuggest','AI Suggest')}
       </button>
@@ -638,13 +638,13 @@ function AISuggestPanel({ onSelect }) {
                   className="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-medium text-slate-800 dark:text-gray-100 leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    <p className="text-xs font-medium text-slate-800 dark:text-gray-100 leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {p.name}
                     </p>
                     <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${
                       p._tag === 'expiring'
                         ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
-                        : 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400'
+                        : 'bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400'
                     }`}>
                       {p._tag === 'expiring'
                         ? (p.days_to_expiry != null ? `${p.days_to_expiry}d left` : 'Clearance')
@@ -996,7 +996,7 @@ function AutoCampaignModal({ onClose, onComplete }) {
                 })}
               </div>
               {step==='done' && (
-                <button onClick={onClose} className="w-full py-3 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">Done — View Calendar</button>
+                <button onClick={onClose} className="w-full py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Done — View Calendar</button>
               )}
             </>
           )}
@@ -1010,7 +1010,7 @@ function AutoCampaignModal({ onClose, onComplete }) {
 function StepBadge({ n, active, done }) {
   return (
     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0
-      ${done?'bg-emerald-500 text-white':active?'bg-indigo-600 text-white':'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400'}`}>
+      ${done?'bg-emerald-500 text-white':active?'bg-blue-600 text-white':'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400'}`}>
       {done?<Check size={12}/>:n}
     </span>
   );
@@ -1311,9 +1311,9 @@ export default function MarketingGenerator() {
         {[['create',t('marketing.create','Create'),Sparkles],['calendar',t('marketing.calendar','Calendar'),CalendarDays],['drafts',t('marketing.drafts','Drafts'),Bot]].map(([tKey,l,Icon])=>(
           <button key={tKey} onClick={()=>handleTabClick(tKey)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all
-              ${tab===tKey?'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm':'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'}`}>
+              ${tab===tKey?'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-300 shadow-sm':'text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'}`}>
             <Icon size={13}/>{l}
-            {tKey==='calendar'&&history.length>0&&<span className="ml-0.5 bg-indigo-600 text-white text-[9px] rounded-full px-1.5 py-0.5">{history.length}</span>}
+            {tKey==='calendar'&&history.length>0&&<span className="ml-0.5 bg-blue-600 text-white text-[9px] rounded-full px-1.5 py-0.5">{history.length}</span>}
           </button>
         ))}
       </div>
@@ -1335,8 +1335,8 @@ export default function MarketingGenerator() {
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(PLATFORMS).map(([k,cfg])=>{ const Icon=cfg.icon; const on=form.platform===k; return (
                       <button key={k} onClick={()=>set('platform',k)}
-                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-semibold transition-all ${on?'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300':'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
-                        <Icon size={14} className={on?'text-indigo-600':cfg.color}/>{t('marketing.platforms.'+k, cfg.label)}
+                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-semibold transition-all ${on?'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300':'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
+                        <Icon size={14} className={on?'text-blue-600':cfg.color}/>{t('marketing.platforms.'+k, cfg.label)}
                       </button>
                     );})}
                   </div>
@@ -1383,7 +1383,7 @@ export default function MarketingGenerator() {
                   </div>
                 </div>
                 <button onClick={handleGenerate} disabled={loading||imgLoading||!form.product_name.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
                   {loading?<Loader2 size={15} className="animate-spin"/>:<Sparkles size={15}/>}
                   {loading?t('marketing.generating','Generating…'):result?t('marketing.regenAll','Re-generate All'):t('marketing.generateContent','Generate Content')}
                 </button>
@@ -1458,7 +1458,7 @@ export default function MarketingGenerator() {
                       <p className="text-[10px] text-slate-400 capitalize">{t('marketing.types.'+form.post_type, form.post_type)} · {t('marketing.'+form.campaign_type, form.campaign_type)}</p>
                     </div>
                     {pubState==='done' && <Check size={14} className="text-emerald-500"/>}
-                    {pubState==='posting' && <Loader2 size={14} className="animate-spin text-indigo-500"/>}
+                    {pubState==='posting' && <Loader2 size={14} className="animate-spin text-blue-500"/>}
                     {pubState==='error' && <AlertCircle size={14} className="text-red-400"/>}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1.5 pl-1">
@@ -1517,8 +1517,8 @@ export default function MarketingGenerator() {
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={`flex items-center gap-1 text-[11px] font-medium ${pc?.color}`}><PI size={10}/>{pc?.label}</span>
                         <span className="text-[11px] text-slate-400 capitalize flex items-center gap-1"><TI size={10}/>{form.post_type}</span>
-                        {imgLoading&&<span className="text-[11px] text-indigo-500 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/>Generating image…</span>}
-                        {captionLoading&&<span className="text-[11px] text-indigo-500 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/>New caption…</span>}
+                        {imgLoading&&<span className="text-[11px] text-blue-500 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/>Generating image…</span>}
+                        {captionLoading&&<span className="text-[11px] text-blue-500 flex items-center gap-1"><Loader2 size={10} className="animate-spin"/>New caption…</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1527,7 +1527,7 @@ export default function MarketingGenerator() {
                         <Trash2 size={12}/> Clear
                       </button>
                       <button onClick={handleSaveToDraft} disabled={savedToDraft}
-                        className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 transition-colors ${savedToDraft ? 'border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400' : 'border-slate-200 dark:border-gray-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:text-indigo-400 dark:hover:border-indigo-700'}`}>
+                        className={`flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 transition-colors ${savedToDraft ? 'border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400' : 'border-slate-200 dark:border-gray-700 text-slate-500 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-400 dark:hover:border-blue-700'}`}>
                         {savedToDraft ? <Check size={12} className="text-emerald-500"/> : <Bot size={12}/>}
                         {savedToDraft ? 'Saved!' : 'Add to Drafts'}
                       </button>
@@ -1578,7 +1578,7 @@ export default function MarketingGenerator() {
                     <p className="text-sm text-slate-800 dark:text-gray-100 leading-relaxed whitespace-pre-wrap pr-28">{result.caption}</p>
                     {!isReel && (
                       <button onClick={handleRegenCaption} disabled={captionLoading}
-                        className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[11px] font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/60 transition-colors disabled:opacity-50">
+                        className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg text-[11px] font-medium hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors disabled:opacity-50">
                         {captionLoading?<Loader2 size={11} className="animate-spin"/>:<RotateCcw size={11}/>}
                         New caption
                       </button>
@@ -1587,7 +1587,7 @@ export default function MarketingGenerator() {
 
                   {result.hashtags?.length>0&&(
                     <div className="flex flex-wrap gap-1.5">
-                      {result.hashtags.map((t,i)=><span key={i} className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-medium">{t}</span>)}
+                      {result.hashtags.map((t,i)=><span key={i} className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-full text-xs font-medium">{t}</span>)}
                     </div>
                   )}
                 </div>
@@ -1608,7 +1608,7 @@ export default function MarketingGenerator() {
       {/* ═══ CALENDAR TAB ════════════════════════════════════════════════════ */}
       {tab==='calendar'&&(
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl border border-violet-100 dark:border-violet-800/40">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 rounded-2xl border border-violet-100 dark:border-violet-800/40">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center shrink-0"><Zap size={18} className="text-white"/></div>
               <div>
@@ -1646,7 +1646,7 @@ export default function MarketingGenerator() {
                       <p className="text-sm text-slate-500">No posts yet</p>
                       <p className="text-xs text-slate-400 text-center px-4">Posts appear here after publishing via Buffer</p>
                       <button onClick={()=>setTab('create')}
-                        className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors">
+                        className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
                         <Plus size={13}/> Create your first post
                       </button>
                     </div>
@@ -1772,7 +1772,7 @@ function DraftScheduleModal({ ad, onClose, onScheduled }) {
               </div>
               <p className="font-semibold text-slate-800 dark:text-gray-100">Scheduled!</p>
               <p className="text-xs text-slate-400">Your post has been queued in Buffer.</p>
-              <button onClick={onClose} className="mt-2 px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Done</button>
+              <button onClick={onClose} className="mt-2 px-5 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Done</button>
             </div>
           ) : (
             <>
@@ -1790,8 +1790,8 @@ function DraftScheduleModal({ ad, onClose, onScheduled }) {
                     const on = platform === k;
                     return (
                       <button key={k} onClick={() => { setPlatform(k); setPostType('post'); }}
-                        className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-semibold transition-all ${on ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
-                        <Icon size={13} className={on ? 'text-indigo-600' : cfg.color}/>{cfg.label}
+                        className={`flex items-center justify-center gap-2 py-2 rounded-lg border text-xs font-semibold transition-all ${on ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300' : 'border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:border-slate-300 bg-white dark:bg-gray-800'}`}>
+                        <Icon size={13} className={on ? 'text-blue-600' : cfg.color}/>{cfg.label}
                       </button>
                     );
                   })}
@@ -1833,7 +1833,7 @@ function DraftScheduleModal({ ad, onClose, onScheduled }) {
               <button
                 onClick={handleSchedule}
                 disabled={pubState === 'posting'}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
               >
                 {pubState === 'posting' ? <Loader2 size={15} className="animate-spin"/> : <Send size={15}/>}
                 {pubState === 'posting' ? 'Scheduling…' : 'Schedule via Buffer'}
@@ -1891,7 +1891,7 @@ function DraftsTab() {
   };
 
   const CAMP = {
-    social_media: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400',
+    social_media: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400',
     clearance:    'bg-amber-50  dark:bg-amber-950/40  text-amber-600  dark:text-amber-400',
     seasonal:     'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
   };
@@ -1899,7 +1899,7 @@ function DraftsTab() {
 
   if (loading) return (
     <div className="flex items-center justify-center h-48">
-      <Loader2 size={20} className="animate-spin text-indigo-400" />
+      <Loader2 size={20} className="animate-spin text-blue-400" />
     </div>
   );
 
@@ -1917,7 +1917,7 @@ function DraftsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400 dark:text-gray-500">{ads.length} draft{ads.length !== 1 ? 's' : ''} · generated by AI Advisor</p>
-        <button onClick={load} className="text-xs text-slate-400 hover:text-indigo-500 flex items-center gap-1 transition-colors">
+        <button onClick={load} className="text-xs text-slate-400 hover:text-blue-500 flex items-center gap-1 transition-colors">
           <RefreshCw size={11}/> Refresh
         </button>
       </div>
@@ -1961,12 +1961,12 @@ function DraftsTab() {
                 className="w-full h-40 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-700
                   flex flex-col items-center justify-center gap-2
                   text-slate-400 dark:text-gray-500
-                  hover:border-indigo-400 hover:text-indigo-500 dark:hover:border-indigo-600 dark:hover:text-indigo-400
+                  hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-600 dark:hover:text-blue-400
                   disabled:opacity-60 transition-colors"
               >
                 {genImg === ad.id ? (
                   <>
-                    <Loader2 size={20} className="animate-spin text-indigo-500" />
+                    <Loader2 size={20} className="animate-spin text-blue-500" />
                     <p className="text-xs">Generating image…</p>
                     <p className="text-[10px] opacity-60">This takes ~30 seconds</p>
                   </>
@@ -1982,13 +1982,13 @@ function DraftsTab() {
             <p className="text-xs text-slate-600 dark:text-gray-300 leading-relaxed line-clamp-3 flex-1">{ad.caption}</p>
 
             {ad.hashtags?.length > 0 && (
-              <p className="text-[10px] text-indigo-500 dark:text-indigo-400 line-clamp-1">
+              <p className="text-[10px] text-blue-500 dark:text-blue-400 line-clamp-1">
                 {ad.hashtags.slice(0, 6).join(' ')}
               </p>
             )}
 
             <button
-              className="w-full flex items-center justify-center gap-1.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
               onClick={() => setScheduleAd(ad)}
             >
               <Send size={11}/> Schedule Post

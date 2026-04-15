@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Trash2, Loader2, Mic, MicOff, Volume2, Sparkles, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Send, User, Trash2, Loader2, Mic, MicOff, Volume2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import mascotImg from '../assets/mascot_for_chatbot.png';
 import ReactMarkdown from 'react-markdown';
 import { chatWithAdvisor, clearAdvisorSession } from '../api';
 import { Link } from 'react-router-dom';
@@ -206,17 +207,39 @@ export default function AIAssistant() {
   return (
     <div className="h-[calc(100vh-148px)] flex flex-col gap-4">
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between shrink-0">
-        <p className="text-xs text-slate-400 dark:text-gray-500">
-          {t('assistant.poweredBy', 'Powered by Mistral Large · context-aware retail advisor')}
-        </p>
-        <button
-          onClick={handleClear}
-          className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-        >
-          <Trash2 size={13} /> {t('assistant.clearChat', 'Clear chat')}
-        </button>
+      {/* Munim Ji header */}
+      <div className="shrink-0 flex items-center justify-between
+        bg-gradient-to-r from-blue-600 to-blue-700
+        rounded-2xl px-5 py-3.5 shadow-md shadow-blue-500/20 animate-fade-in-up">
+        <div className="flex items-center gap-3">
+          {/* Mascot avatar */}
+          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white border-2 border-white/40 shadow-sm shrink-0">
+            <img
+              src={mascotImg}
+              alt="Munim Ji"
+              className="w-full h-full object-cover object-top"
+              style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(4px)' }}
+            />
+          </div>
+          <div>
+            <p className="text-white font-bold text-sm leading-tight">Munim Ji</p>
+            <p className="text-blue-200 text-[11px] font-medium mt-0.5">
+              {t('assistant.poweredBy', 'Powered by Mistral Large · context-aware retail advisor')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-blue-200 text-[11px] font-medium">Online</span>
+          </div>
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1.5 text-xs text-blue-200 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg hover:bg-white/10"
+          >
+            <Trash2 size={12} /> {t('assistant.clearChat', 'Clear')}
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -225,15 +248,18 @@ export default function AIAssistant() {
           <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
 
             {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center shrink-0 mt-0.5">
-                <Bot size={15} className="text-indigo-600 dark:text-indigo-400" />
+              <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 mt-0.5
+                bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
+                <img src={mascotImg} alt="Munim Ji"
+                  className="w-full h-full object-cover object-top"
+                  style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
               </div>
             )}
 
             <div className={`max-w-[76%] space-y-2 ${msg.role === 'user' ? 'order-first' : ''}`}>
               {msg.adGenerating ? (
                 <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-4 flex items-center gap-3">
-                  <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                  <Loader2 size={15} className="animate-spin text-blue-500 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{t('assistant.adGenerating', 'Generating ad drafts…')}</p>
                     <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{t('assistant.adGeneratingSub', 'Extracting products and writing captions')}</p>
@@ -264,7 +290,7 @@ export default function AIAssistant() {
                       </div>
                       <Link
                         to="/marketing"
-                        className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                        className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         <ExternalLink size={11} /> {t('assistant.viewInMarketing', 'View in Marketing → Drafts')}
                       </Link>
@@ -279,7 +305,7 @@ export default function AIAssistant() {
               ) : (
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-tr-sm'
+                    ? 'bg-blue-600 text-white rounded-tr-sm'
                     : 'bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-200 rounded-tl-sm'
                 }`}>
                   {msg.role === 'assistant' ? (
@@ -294,7 +320,7 @@ export default function AIAssistant() {
                 <button
                   onClick={() => playTTS(msg.content, i)}
                   disabled={ttsLoading === i}
-                  className="flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500 hover:text-indigo-500 transition-colors ml-1"
+                  className="flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500 hover:text-blue-500 transition-colors ml-1"
                 >
                   {ttsLoading === i ? <Loader2 size={11} className="animate-spin" /> : <Volume2 size={11} />}
                   {ttsLoading === i ? t('assistant.loading', 'Loading…') : t('assistant.play', 'Play')}
@@ -307,7 +333,7 @@ export default function AIAssistant() {
                     <button
                       key={j}
                       onClick={() => sendMessage(s)}
-                      className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-full text-xs text-slate-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors"
+                      className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-full text-xs text-slate-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition-colors"
                     >
                       {s}
                     </button>
@@ -317,7 +343,7 @@ export default function AIAssistant() {
             </div>
 
             {msg.role === 'user' && (
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 mt-0.5">
                 <User size={15} className="text-white" />
               </div>
             )}
@@ -326,8 +352,10 @@ export default function AIAssistant() {
 
         {loading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center">
-              <Bot size={15} className="text-indigo-600 dark:text-indigo-400" />
+            <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0
+              bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
+              <img src={mascotImg} alt="" className="w-full h-full object-cover object-top"
+                style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
             </div>
             <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3">
               <div className="flex gap-1 items-center h-4">
@@ -349,7 +377,7 @@ export default function AIAssistant() {
           className={`px-4 py-3 rounded-xl transition-colors ${
             recording
               ? 'bg-red-500 text-white animate-pulse'
-              : 'bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:text-indigo-600 hover:border-indigo-300'
+              : 'bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300'
           }`}
         >
           {recording ? <MicOff size={15} /> : <Mic size={15} />}
@@ -360,12 +388,12 @@ export default function AIAssistant() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
           placeholder={recording ? t('assistant.recordingPlaceholder', 'Recording… click mic to stop') : t('assistant.placeholder', 'Ask me anything about your store…')}
-          className="flex-1 px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+          className="flex-1 px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
         />
         <button
           onClick={() => sendMessage()}
           disabled={loading || !input.trim()}
-          className="px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           <Send size={15} />
         </button>
