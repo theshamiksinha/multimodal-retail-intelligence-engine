@@ -7,9 +7,57 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 
-const AD_GENERATE_PATTERN = /\b(generate|create|make|save|turn|convert)\b.{0,30}\b(ads?|advertisements?|campaigns?|posts?)\b/i;
-const EXPIRING_PATTERN    = /\bexpir(ing|ed|es?)\b|\babout to expire\b|\bclearance\b/i;
+const AD_GENERATE_PATTERN  = /\b(generate|create|make|save|turn|convert)\b.{0,30}\b(ads?|advertisements?|campaigns?|posts?)\b/i;
+const EXPIRING_PATTERN     = /\bexpir(ing|ed|es?)\b|\babout to expire\b|\bclearance\b/i;
 const TOP_PRODUCTS_PATTERN = /\btop\b|\bbest.sell(ing|ers?)\b|\bpopular\b|\bslowest\b|\bslow.mov/i;
+
+// ── Hinglish detector ─────────────────────────────────────────────────────────
+const HINGLISH_WORDS = new Set([
+  'kya','kyun','kyunki','kab','kaise','kaun','kahan','kitna','kitne','kitni',
+  'mujhe','hume','humko','aapko','tumko','hum','aap','tum','main','mein','mei',
+  'ek','do','teen','bhi','nahi','nahin','nhi','hai','hain','hoga','ho','kar','karo',
+  'se','ko','ka','ki','ke','wala','wali','wale','yeh','woh','ye','wo','iska','uska',
+  'bahut','accha','acha','sahi','theek','thik','zyada','zyadi','jyada','kam','kum',
+  'mehnga','sasta','jaldi','abhi','kal','aaj','matlab','poochh','puch','pooch',
+  'batao','bolo','dikhao','chahiye','milega','lena','dena','karna','karo','karna',
+  'bata','dekho','sunno','samjho','bhai','yaar','chal','chalo','raha','rahi','rahe',
+  'dukan','saman','maal','bikta','bika','bik','bikata','bikri','bikne',
+  'paisa','paise','rupaye','lagta','lagti','lagta','aata','aati',
+  'sabse','badhiya','bekar','kharab','zyade','thoda','jyada','sab','kuch',
+  'bol','sun','dekh','aa','ja','le','de','kar','ho','ban',
+]);
+
+function detectHinglish(text) {
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  const count = words.filter(w => HINGLISH_WORDS.has(w)).length;
+  return count >= 2 || (words.length >= 4 && count / words.length >= 0.2);
+}
+
+const LANG_NOTE_HI = '\n\n[Note: User is writing in Hinglish. Please respond in Hinglish — Hindi words written in Roman/English script, mixed with English where natural. Keep it warm and conversational, like a trusted advisor would speak.]';
+const LANG_NOTE_EN = '\n\n[Note: User is writing in English. Please respond in English.]';
+
+// ── Initial messages (language-aware) ─────────────────────────────────────────
+const INITIAL_MSG = {
+  en: {
+    role: 'assistant',
+    content: "Namaste! 🙏 I'm Munim Ji — your dedicated AI retail advisor.\n\nI've been keeping a close eye on your store's sales, inventory, and customer movement so you don't have to worry about the numbers. Think of me as your trusted munim who knows every shelf, every product, and every trend in your store.\n\nHere's what I can help you with:\n- 📊 Sales trends and product performance\n- 📦 Inventory alerts — low stock, expiring items, dead stock\n- 🗺️ Store layout and product placement tips\n- 📣 Marketing campaign ideas\n\nBas poochho — just ask!",
+    suggestions: [
+      'Kaun sa product sabse zyada bik raha hai?',
+      'Which products are about to expire?',
+      'Suggest a campaign for my slow-moving stock',
+    ],
+  },
+  hi: {
+    role: 'assistant',
+    content: "Namaste! 🙏 Main hoon Munim Ji — aapka dedicated AI retail advisor.\n\nMain aapke store ki sales, inventory, aur customer movement pe nazar rakh raha hoon — taaki aapko numbers ki chinta na ho. Mujhe apne trusted munim ki tarah samjho jo har shelf, har product, aur har trend jaanta hai.\n\nYeh main kar sakta hoon:\n- 📊 Sales trends aur product performance\n- 📦 Inventory alerts — low stock, expiring items, dead stock\n- 🗺️ Store layout aur product placement tips\n- 📣 Marketing campaign ideas\n\nBas poochho!",
+    suggestions: [
+      'Kaun sa product sabse zyada bik raha hai?',
+      'Kaunse products expire hone wale hain?',
+      'Mere slow-moving stock ke liye campaign suggest karo',
+    ],
+  },
+};
 
 async function generateAdDrafts(text, tone = 'engaging', platform = 'instagram') {
   const r = await axios.post('/api/marketing/archive/generate', { advisor_text: text, tone, platform });
@@ -38,23 +86,24 @@ const GOOGLE_API_KEY      = import.meta.env.VITE_GOOGLE_STT_API_KEY;
 const ELEVENLABS_API_KEY  = import.meta.env.VITE_ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID;
 
-const INITIAL_MESSAGE = {
-  role: 'assistant',
-  content: "Namaste! 🙏 I'm Munim Ji — your dedicated AI retail advisor.\n\nI've been keeping a close eye on your store's sales, inventory, and customer movement so you don't have to worry about the numbers. Think of me as your trusted munim who knows every shelf, every product, and every trend in your store.\n\nHere's what I can help you with:\n- 📊 Sales trends and product performance\n- 📦 Inventory alerts — low stock, expiring items, dead stock\n- 🗺️ Store layout and product placement tips\n- 📣 Marketing campaign ideas\n\nBas poochho — just ask!",
-  suggestions: [
-    'Kaun sa product sabse zyada bik raha hai?',
-    'Which products are about to expire?',
-    'Suggest a campaign for my slow-moving stock',
-  ],
-};
-
 export default function AIAssistant() {
-  const { t } = useTranslation();
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
-  const [input, setInput]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [recording, setRecording] = useState(false);
+  const { t, i18n } = useTranslation();
+  const initLang = i18n.language === 'hi' ? 'hi' : 'en';
+  const [chatLang, setChatLang]     = useState(initLang);
+  const [messages, setMessages]     = useState([INITIAL_MSG[initLang]]);
+  const [input, setInput]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [recording, setRecording]   = useState(false);
   const [ttsLoading, setTtsLoading] = useState(null);
+
+  // When app language changes (settings toggle), update UI language + welcome msg if still at start
+  useEffect(() => {
+    const lang = i18n.language === 'hi' ? 'hi' : 'en';
+    setChatLang(lang);
+    setMessages(prev =>
+      prev.length === 1 ? [INITIAL_MSG[lang]] : prev
+    );
+  }, [i18n.language]);
 
   const chatEndRef       = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -149,6 +198,11 @@ export default function AIAssistant() {
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: msg }]);
 
+    // Detect language from the message and update chat language state
+    const isHinglish = detectHinglish(msg);
+    const msgLang = isHinglish ? 'hi' : 'en';
+    setChatLang(msgLang);
+
     // Intercept "generate ads" intent
     if (AD_GENERATE_PATTERN.test(msg)) {
       setLoading(true);
@@ -184,7 +238,8 @@ export default function AIAssistant() {
 
     setLoading(true);
     try {
-      const res = await chatWithAdvisor(msg);
+      const langNote = msgLang === 'hi' ? LANG_NOTE_HI : LANG_NOTE_EN;
+      const res = await chatWithAdvisor(msg + langNote);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: res.data.response,
@@ -193,7 +248,9 @@ export default function AIAssistant() {
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please make sure the backend is running and your API keys are configured.',
+        content: msgLang === 'hi'
+          ? 'Yaar, kuch error aa gaya. Backend chal raha hai? Thoda baad mein try karo!'
+          : 'Sorry, I encountered an error. Please make sure the backend is running and your API keys are configured.',
       }]);
     }
     setLoading(false);
@@ -201,7 +258,9 @@ export default function AIAssistant() {
 
   const handleClear = async () => {
     await clearAdvisorSession('default').catch(() => {});
-    setMessages([INITIAL_MESSAGE]);
+    const lang = i18n.language === 'hi' ? 'hi' : 'en';
+    setChatLang(lang);
+    setMessages([INITIAL_MSG[lang]]);
   };
 
   return (
@@ -387,7 +446,11 @@ export default function AIAssistant() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder={recording ? t('assistant.recordingPlaceholder', 'Recording… click mic to stop') : t('assistant.placeholder', 'Ask me anything about your store…')}
+          placeholder={
+            recording
+              ? (chatLang === 'hi' ? 'Recording… mic band karo' : 'Recording… click mic to stop')
+              : (chatLang === 'hi' ? 'Kuch bhi poochho apne store ke baare mein…' : 'Ask me anything about your store…')
+          }
           className="flex-1 px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
         />
         <button

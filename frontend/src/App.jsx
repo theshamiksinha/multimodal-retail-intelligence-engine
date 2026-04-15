@@ -170,16 +170,49 @@ function Header() {
   );
 }
 
+// ── Hinglish detector (same logic as AIAssistant) ─────────────────────────────
+const HINGLISH_WORDS_F = new Set([
+  'kya','kyun','kyunki','kab','kaise','kaun','kahan','kitna','kitne','kitni',
+  'mujhe','hume','humko','aapko','tumko','hum','aap','tum','main','mein','mei',
+  'ek','do','teen','bhi','nahi','nahin','nhi','hai','hain','hoga','ho','kar','karo',
+  'se','ko','ka','ki','ke','wala','wali','wale','yeh','woh','ye','wo','iska','uska',
+  'bahut','accha','acha','sahi','theek','thik','zyada','zyadi','jyada','kam','kum',
+  'jaldi','abhi','kal','aaj','matlab','batao','bolo','dikhao','chahiye','milega',
+  'bata','dekho','sunno','bhai','yaar','raha','rahi','rahe','bikta','bika','bik',
+  'sabse','badhiya','zyade','thoda','sab','kuch','bol','sun','dekh','le','de',
+]);
+function detectHinglishF(text) {
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  const count = words.filter(w => HINGLISH_WORDS_F.has(w)).length;
+  return count >= 2 || (words.length >= 4 && count / words.length >= 0.2);
+}
+const FLOAT_LANG_HI = '\n\n[Note: User is writing in Hinglish. Please respond in Hinglish — Hindi written in Roman script, mixed naturally with English.]';
+const FLOAT_LANG_EN = '\n\n[Note: User is writing in English. Please respond in English.]';
+const FLOAT_INIT = {
+  en: "Namaste! 🙏 Main hoon Munim Ji — your store's AI advisor. Ask me about sales, inventory, expiring products, or anything else about your store!",
+  hi: "Namaste! 🙏 Main hoon Munim Ji — aapke store ka AI advisor. Sales, inventory, expiring products — kuch bhi poochho!",
+};
+
 /* ── Munim Ji — Floating chatbot ──────────────────────────────────────── */
 function MunimJi() {
+  const { i18n } = useTranslation();
+  const initLang = i18n.language === 'hi' ? 'hi' : 'en';
   const [open, setOpen]       = useState(false);
   const [input, setInput]     = useState('');
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState([{
-    role: 'assistant',
-    content: "Namaste! 🙏 Main hoon Munim Ji — your store's AI advisor. Ask me about sales, inventory, expiring products, or anything else about your store!",
-  }]);
+  const [chatLang, setChatLang] = useState(initLang);
+  const [messages, setMessages] = useState([{ role: 'assistant', content: FLOAT_INIT[initLang] }]);
   const messagesEndRef = useRef(null);
+
+  // Sync with app-level language changes (settings toggle)
+  useEffect(() => {
+    const lang = i18n.language === 'hi' ? 'hi' : 'en';
+    setChatLang(lang);
+    setMessages(prev =>
+      prev.length === 1 ? [{ role: 'assistant', content: FLOAT_INIT[lang] }] : prev
+    );
+  }, [i18n.language]);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,14 +223,18 @@ function MunimJi() {
     const msg = input.trim();
     if (!msg || loading) return;
     setInput('');
+    const isHinglish = detectHinglishF(msg);
+    const msgLang = isHinglish ? 'hi' : 'en';
+    setChatLang(msgLang);
     const next = [...messages, { role: 'user', content: msg }];
     setMessages(next);
     setLoading(true);
     try {
-      const res = await chatWithAdvisor(msg, 'munim-ji-float');
+      const langNote = msgLang === 'hi' ? FLOAT_LANG_HI : FLOAT_LANG_EN;
+      const res = await chatWithAdvisor(msg + langNote, 'munim-ji-float');
       setMessages([...next, { role: 'assistant', content: res.data.response }]);
     } catch {
-      setMessages([...next, { role: 'assistant', content: 'I seem to be offline right now. Please try again in a moment.' }]);
+      setMessages([...next, { role: 'assistant', content: msgLang === 'hi' ? 'Yaar, abhi offline hoon. Thodi der mein try karo!' : 'I seem to be offline right now. Please try again in a moment.' }]);
     }
     setLoading(false);
   };
@@ -283,7 +320,7 @@ function MunimJi() {
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Ask Munim Ji anything…"
+              placeholder={chatLang === 'hi' ? 'Kuch bhi poochho Munim Ji se…' : 'Ask Munim Ji anything…'}
               className="flex-1 text-xs px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700
                 bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-200
                 placeholder:text-slate-400 dark:placeholder:text-gray-600
