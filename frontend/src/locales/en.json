@@ -16,6 +16,36 @@
     "/inventory": "Inventory Insights",
     "/settings": "Store Settings"
   },
+  "wizard": {
+    "steps": {
+      "storeName": {
+        "hint": "Your store identity",
+        "question": "What's your store called?",
+        "placeholder": "e.g. Green Valley Grocery"
+      },
+      "language": {
+        "hint": "Choose your display language",
+        "question": "What language do you prefer?"
+      },
+      "footfall": {
+        "hint": "Approximate daily footfall",
+        "question": "How many customers visit your store each day?"
+      },
+      "revenue": {
+        "hint": "Helps us tailor analytics thresholds",
+        "question": "What is your approximate monthly revenue?"
+      },
+      "size": {
+        "hint": "Floor area helps with heatmap zone recommendations",
+        "question": "How would you describe your store size?"
+      }
+    },
+    "back": "Back",
+    "previous": "Previous",
+    "next": "Next",
+    "getStarted": "Get Started",
+    "stepProgress": "Step {{step}} of {{total}} · Your answers stay on this device"
+  },
   "dashboard": {
     "title": "Store Dashboard",
     "greeting": "Welcome back",
@@ -42,6 +72,66 @@
     "revenueTrend": "Revenue Trend",
     "last30": "last 30 days"
   },
+  "analytics": {
+    "addFloor": "Add Floor",
+    "editCameraLayout": "Edit Camera Layout",
+    "deleteFloor": "Delete Floor",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "deleting": "Deleting…",
+    "tabHeatmap": "Heatmap",
+    "tabJourneys": "Customer Journeys",
+    "tabZones": "Zones",
+    "noFloors": "No floor plans configured yet",
+    "noFloorsSub": "Upload your store layout and place cameras to generate heatmap analytics.",
+    "addFirst": "Add Your First Floor",
+    "unifiedHeatmap": "Unified Heatmap",
+    "floorPreview": "Floor Plan Preview",
+    "runningCv": "Running CV pipeline…",
+    "yoloPoll": "YOLOv8 detection · polling every 3 s",
+    "processingFailed": "Processing failed",
+    "processingFailedSub": "Upload videos and click \"Generate Heatmap\" to retry",
+    "legendHigh": "High",
+    "legendMedium": "Medium",
+    "legendLow": "Low",
+    "uploadCctv": "Upload CCTV footage and generate a heatmap to see customer traffic",
+    "noImage": "No image available",
+    "cameraFeeds": "Camera Feeds",
+    "noCameras": "No cameras placed yet.",
+    "noCamerasSub": "Click Edit Camera Layout to add cameras.",
+    "uploading": "Uploading",
+    "replace": "Replace",
+    "retry": "Retry",
+    "upload": "Upload",
+    "pipelineRunning": "Pipeline running…",
+    "recalibrateHeatmap": "Recalibrate Heatmap",
+    "generateHeatmap": "Generate Heatmap",
+    "uploadAtLeastOne": "Upload at least one camera feed.",
+    "totalDetected": "Total detected:",
+    "zoneSummary": "Camera Zone Summary",
+    "noZoneData": "No zone data available",
+    "people": "People:",
+    "score": "Score:",
+    "whenRecorded": "When was this recorded?",
+    "dateTime": "Date & Time",
+    "preFilledNow": "Pre-filled to now — edit if the footage is from a different time.",
+    "processingError": "Processing error"
+  },
+  "assistant": {
+    "poweredBy": "Powered by Mistral Large · context-aware retail advisor",
+    "clearChat": "Clear chat",
+    "placeholder": "Ask me anything about your store…",
+    "recordingPlaceholder": "Recording… click mic to stop",
+    "adGenerating": "Generating ad drafts…",
+    "adGeneratingSub": "Extracting products and writing captions",
+    "adDraftsSaved": "{{count}} ad draft saved",
+    "adDraftsSavedPlural": "{{count}} ad drafts saved",
+    "viewInMarketing": "View in Marketing → Drafts",
+    "noProducts": "No products found in the previous response. Ask me for campaign suggestions first.",
+    "play": "Play",
+    "loading": "Loading…"
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",
@@ -60,18 +150,15 @@
       "size": "Store Size"
     },
     "options": {
-      "under_50": { "label": "Under 50", "sub": "Quiet neighbourhood store" },
       "50_200": { "label": "50 – 200", "sub": "Local convenience store" },
       "200_500": { "label": "200 – 500", "sub": "Busy high-street shop" },
       "over_500": { "label": "500+", "sub": "High-traffic retail outlet" },
-      "under_10k": { "label": "Under ₹10K", "sub": "Early stage / small store" },
       "10k_50k": { "label": "₹10K – ₹50K", "sub": "Growing retailer" },
       "50k_200k": { "label": "₹50K – ₹200K", "sub": "Established mid-size store" },
       "over_200k": { "label": "₹200K+", "sub": "Large retail operation" },
-      "small": { "label": "Small", "sub": "Under 500 sq ft" },
-      "medium": { "label": "Medium", "sub": "500 – 2,000 sq ft" },
-      "large": { "label": "Large", "sub": "2,000 – 10,000 sq ft" },
-      "xlarge": { "label": "Extra Large", "sub": "10,000+ sq ft" }
+      "medium": { "label": "Small", "sub": "500 – 2,000 sq ft" },
+      "large": { "label": "Medium", "sub": "2,000 – 10,000 sq ft" },
+      "xlarge": { "label": "Large", "sub": "10,000+ sq ft" }
     },
     "features": {
       "voiceEntry": { "label": "Voice Inventory Entry", "sub": "Add products by speaking" },
@@ -103,7 +190,7 @@
     "stopProcess": "Stop & Process",
     "ocrEntryTitle": "OCR Inventory Entry",
     "ocrEntrySub": "Upload a note, label, bill, or handwritten stock sheet",
-    "ocrExample": "Example: “Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays”",
+    "ocrExample": "Example: 'Milk 24 pcs ₹65, Bread 12 pcs ₹40, Eggs 10 trays'",
     "uploadImage": "Upload Image"
   },
   "marketing": {

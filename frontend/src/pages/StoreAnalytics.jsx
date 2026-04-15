@@ -11,6 +11,7 @@ import {
 } from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const COLORS     = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
 const CAM_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
@@ -19,6 +20,7 @@ const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-100 dark
 
 export default function StoreAnalytics() {
   const { dark } = useTheme();
+  const { t } = useTranslation();
   const [floors, setFloors]             = useState([]);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [showSetup, setShowSetup]       = useState(false);
@@ -195,7 +197,7 @@ export default function StoreAnalytics() {
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
         >
           <Plus size={15} />
-          Add Floor
+          {t('analytics.addFloor', 'Add Floor')}
         </button>
       </div>
 
@@ -206,22 +208,22 @@ export default function StoreAnalytics() {
             onClick={() => setEditingFloor(selectedFloor)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-400 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
           >
-            <Edit2 size={12} /> Edit Camera Layout
+            <Edit2 size={12} /> {t('analytics.editCameraLayout', 'Edit Camera Layout')}
           </button>
 
           {confirmDelete === selectedFloor.session_id ? (
             <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-3 py-1.5">
               <AlertTriangle size={13} className="text-red-500 shrink-0" />
-              <span className="text-xs text-red-700 dark:text-red-400">Delete "{selectedFloor.floor_name}"?</span>
+              <span className="text-xs text-red-700 dark:text-red-400">{t('analytics.confirmDelete', 'Delete "{{name}}"?', { name: selectedFloor.floor_name })}</span>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-800 disabled:opacity-50"
               >
-                {deleting ? 'Deleting…' : 'Confirm'}
+                {deleting ? t('analytics.deleting', 'Deleting…') : t('analytics.confirm', 'Confirm')}
               </button>
               <button onClick={() => setConfirmDelete(null)} className="text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600">
-                Cancel
+                {t('analytics.cancel', 'Cancel')}
               </button>
             </div>
           ) : (
@@ -229,7 +231,7 @@ export default function StoreAnalytics() {
               onClick={() => setConfirmDelete(selectedFloor.session_id)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-red-200 dark:border-red-900 text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
             >
-              <Trash2 size={12} /> Delete Floor
+              <Trash2 size={12} /> {t('analytics.deleteFloor', 'Delete Floor')}
             </button>
           )}
         </div>
@@ -239,9 +241,9 @@ export default function StoreAnalytics() {
       {selectedFloor?.status === 'done' && (
         <div className="flex gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl w-fit flex-wrap">
           {[
-            { id: 'heatmap',  label: 'Heatmap' },
-            { id: 'journeys', label: 'Customer Journeys', icon: <Footprints size={12}/> },
-            { id: 'zones',    label: 'Zones' },
+            { id: 'heatmap',  label: t('analytics.tabHeatmap', 'Heatmap') },
+            { id: 'journeys', label: t('analytics.tabJourneys', 'Customer Journeys'), icon: <Footprints size={12}/> },
+            { id: 'zones',    label: t('analytics.tabZones', 'Zones') },
           ].map(tab => (
             <button
               key={tab.id}
@@ -262,15 +264,15 @@ export default function StoreAnalytics() {
       {!loading && floors.length === 0 && (
         <div className={`${CARD} p-16 text-center`}>
           <MapPin size={36} className="text-slate-300 dark:text-gray-600 mx-auto mb-3" />
-          <h3 className="font-semibold text-slate-600 dark:text-gray-300 mb-1">No floor plans configured yet</h3>
+          <h3 className="font-semibold text-slate-600 dark:text-gray-300 mb-1">{t('analytics.noFloors', 'No floor plans configured yet')}</h3>
           <p className="text-sm text-slate-400 dark:text-gray-500 mb-5">
-            Upload your store layout and place cameras to generate heatmap analytics.
+            {t('analytics.noFloorsSub', 'Upload your store layout and place cameras to generate heatmap analytics.')}
           </p>
           <button
             onClick={() => setShowSetup(true)}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
-            <Plus size={15} /> Add Your First Floor
+            <Plus size={15} /> {t('analytics.addFirst', 'Add Your First Floor')}
           </button>
         </div>
       )}
@@ -284,41 +286,41 @@ export default function StoreAnalytics() {
             <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-3">
               {selectedFloor.floor_name} —{' '}
               <span className="font-normal text-slate-400 dark:text-gray-500">
-                {selectedFloor.status === 'done' ? 'Unified Heatmap' : 'Floor Plan Preview'}
+                {selectedFloor.status === 'done' ? t('analytics.unifiedHeatmap', 'Unified Heatmap') : t('analytics.floorPreview', 'Floor Plan Preview')}
               </span>
             </h3>
 
             {isProcessing ? (
               <div className="h-64 bg-slate-50 dark:bg-gray-800 rounded-xl flex flex-col items-center justify-center gap-3">
                 <Loader2 size={28} className="animate-spin text-indigo-500" />
-                <p className="text-sm text-slate-600 dark:text-gray-300 font-medium">Running CV pipeline…</p>
-                <p className="text-xs text-slate-400 dark:text-gray-500">YOLOv8 detection · polling every 3 s</p>
+                <p className="text-sm text-slate-600 dark:text-gray-300 font-medium">{t('analytics.runningCv', 'Running CV pipeline…')}</p>
+                <p className="text-xs text-slate-400 dark:text-gray-500">{t('analytics.yoloPoll', 'YOLOv8 detection · polling every 3 s')}</p>
               </div>
             ) : selectedFloor.status === 'error' ? (
               <div className="h-48 bg-red-50 dark:bg-red-950/30 rounded-xl flex flex-col items-center justify-center gap-2 border border-red-100 dark:border-red-900">
                 <AlertTriangle size={22} className="text-red-400" />
-                <p className="text-sm text-red-600 dark:text-red-400 font-medium">Processing failed</p>
-                <p className="text-xs text-red-400 dark:text-red-500">Upload videos and click "Generate Heatmap" to retry</p>
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">{t('analytics.processingFailed', 'Processing failed')}</p>
+                <p className="text-xs text-red-400 dark:text-red-500">{t('analytics.processingFailedSub', 'Upload videos and click "Generate Heatmap" to retry')}</p>
               </div>
             ) : selectedFloor.status === 'done' && selectedFloor.heatmap_url ? (
               <>
                 <img src={selectedFloor.heatmap_url} alt="Heatmap" className="w-full rounded-xl" />
                 <div className="flex gap-4 mt-3 text-xs text-slate-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-red-500 rounded-sm" /> High</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-yellow-400 rounded-sm" /> Medium</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-blue-500 rounded-sm" /> Low</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-red-500 rounded-sm" /> {t('analytics.legendHigh', 'High')}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-yellow-400 rounded-sm" /> {t('analytics.legendMedium', 'Medium')}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-blue-500 rounded-sm" /> {t('analytics.legendLow', 'Low')}</span>
                 </div>
               </>
             ) : selectedFloor.floor_plan_url ? (
               <>
                 <img src={selectedFloor.floor_plan_url} alt="Floor plan" className="w-full rounded-xl opacity-60" />
                 <p className="text-xs text-slate-400 dark:text-gray-500 mt-2 text-center">
-                  Upload CCTV footage and generate a heatmap to see customer traffic
+                  {t('analytics.uploadCctv', 'Upload CCTV footage and generate a heatmap to see customer traffic')}
                 </p>
               </>
             ) : (
               <div className="h-64 bg-slate-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-slate-400 dark:text-gray-500 text-sm">
-                No image available
+                {t('analytics.noImage', 'No image available')}
               </div>
             )}
           </div>
@@ -326,14 +328,14 @@ export default function StoreAnalytics() {
           {/* Camera feeds */}
           <div className={`${CARD} p-5 flex flex-col gap-4`}>
             <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-2 shrink-0">
-              <Camera size={14} className="text-indigo-500" /> Camera Feeds
+              <Camera size={14} className="text-indigo-500" /> {t('analytics.cameraFeeds', 'Camera Feeds')}
             </h3>
 
             {!selectedFloor.cameras?.length ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-sm text-slate-400 dark:text-gray-500 text-center leading-relaxed">
-                  No cameras placed yet.<br />
-                  Click <strong>Edit Camera Layout</strong> to add cameras.
+                  {t('analytics.noCameras', 'No cameras placed yet.')}<br />
+                  {t('analytics.noCamerasSub', 'Click Edit Camera Layout to add cameras.')}
                 </p>
               </div>
             ) : (
@@ -357,22 +359,22 @@ export default function StoreAnalytics() {
                         <span className="text-xs font-medium text-slate-700 dark:text-gray-300 flex-1 min-w-0 truncate">{cam.name}</span>
                         {isUploading ? (
                           <span className="flex items-center gap-1 text-xs text-indigo-500 shrink-0">
-                            <Loader2 size={11} className="animate-spin" /> Uploading
+                            <Loader2 size={11} className="animate-spin" /> {t('analytics.uploading', 'Uploading')}
                           </span>
                         ) : (uploadDone || hasExisting) ? (
                           <div className="flex items-center gap-1.5 shrink-0">
                             <CheckCircle size={11} className="text-green-500" />
                             <label className="text-xs text-slate-400 dark:text-gray-500 cursor-pointer hover:text-indigo-500 underline underline-offset-2">
-                              Replace<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                              {t('analytics.replace', 'Replace')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                             </label>
                           </div>
                         ) : uploadError ? (
                           <label className="flex items-center gap-1 text-xs text-red-500 cursor-pointer hover:text-red-700 shrink-0">
-                            <Upload size={11} /> Retry<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                            <Upload size={11} /> {t('analytics.retry', 'Retry')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         ) : (
                           <label className="flex items-center gap-1 text-xs text-indigo-600 cursor-pointer hover:text-indigo-800 shrink-0">
-                            <Upload size={11} /> Upload<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                            <Upload size={11} /> {t('analytics.upload', 'Upload')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
                           </label>
                         )}
                       </div>
@@ -385,7 +387,7 @@ export default function StoreAnalytics() {
                     const hasAnyVideo = selectedFloor.cameras.some(c => c.has_video || videoUploads[c.id]?.status === 'done');
                     if (isProcessing) return (
                       <div className="flex items-center justify-center gap-2 py-2 text-sm text-indigo-500">
-                        <Loader2 size={14} className="animate-spin" /> Pipeline running…
+                        <Loader2 size={14} className="animate-spin" /> {t('analytics.pipelineRunning', 'Pipeline running…')}
                       </div>
                     );
                     if (hasAnyVideo) return (
@@ -394,16 +396,16 @@ export default function StoreAnalytics() {
                         className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
                       >
                         <Play size={14} />
-                        {selectedFloor.status === 'done' ? 'Recalibrate Heatmap' : 'Generate Heatmap'}
+                        {selectedFloor.status === 'done' ? t('analytics.recalibrateHeatmap', 'Recalibrate Heatmap') : t('analytics.generateHeatmap', 'Generate Heatmap')}
                       </button>
                     );
-                    return <p className="text-xs text-slate-400 dark:text-gray-500 text-center py-2">Upload at least one camera feed.</p>;
+                    return <p className="text-xs text-slate-400 dark:text-gray-500 text-center py-2">{t('analytics.uploadAtLeastOne', 'Upload at least one camera feed.')}</p>;
                   })()}
                 </div>
 
                 {selectedFloor.status === 'done' && (
                   <p className="text-xs text-slate-500 dark:text-gray-400 border-t border-slate-100 dark:border-gray-800 pt-2 shrink-0">
-                    Total detected: <strong className="text-slate-700 dark:text-gray-200">{selectedFloor.total_people}</strong>
+                    {t('analytics.totalDetected', 'Total detected:')} <strong className="text-slate-700 dark:text-gray-200">{selectedFloor.total_people}</strong>
                   </p>
                 )}
               </>
@@ -416,7 +418,7 @@ export default function StoreAnalytics() {
       {activeTab === 'heatmap' && selectedFloor?.status === 'done' && selectedFloor.zones?.length > 0 && (
         <div className={`${CARD} p-5`}>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-            <Clock size={14} className="text-indigo-500" /> Camera Zone Summary
+            <Clock size={14} className="text-indigo-500" /> {t('analytics.zoneSummary', 'Camera Zone Summary')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {selectedFloor.zones.map((zone, i) => (
@@ -457,10 +459,10 @@ export default function StoreAnalytics() {
                 {zone.level}
               </span>
               <p className="text-xs text-slate-500 dark:text-gray-400">{zone.description}</p>
-              <p className="text-xs text-slate-400 dark:text-gray-500 mt-2">People: {zone.people_count} · Score: {zone.density_score}</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-2">{t('analytics.people', 'People:')} {zone.people_count} · {t('analytics.score', 'Score:')} {zone.density_score}</p>
             </div>
           )) : (
-            <div className="col-span-3 text-center py-12 text-slate-400 dark:text-gray-500">No zone data available</div>
+            <div className="col-span-3 text-center py-12 text-slate-400 dark:text-gray-500">{t('analytics.noZoneData', 'No zone data available')}</div>
           )}
         </div>
       )}
@@ -483,13 +485,13 @@ export default function StoreAnalytics() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-gray-800 p-6 w-80 space-y-4">
             <div>
-              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">When was this recorded?</h3>
+              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{t('analytics.whenRecorded', 'When was this recorded?')}</h3>
               <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
                 {pendingUpload.file.name}
               </p>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Date &amp; Time</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-gray-400">{t('analytics.dateTime', 'Date & Time')}</label>
               <input
                 type="datetime-local"
                 value={pendingUpload.recordedAt}
@@ -499,7 +501,7 @@ export default function StoreAnalytics() {
                   focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-xs text-slate-400 dark:text-gray-500">
-                Pre-filled to now — edit if the footage is from a different time.
+                {t('analytics.preFilledNow', 'Pre-filled to now — edit if the footage is from a different time.')}
               </p>
             </div>
             <div className="flex gap-2 pt-1">
@@ -508,13 +510,13 @@ export default function StoreAnalytics() {
                 className="flex-1 py-2 text-sm rounded-xl border border-slate-200 dark:border-gray-700
                   text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
               >
-                Cancel
+                {t('analytics.cancel', 'Cancel')}
               </button>
               <button
                 onClick={confirmPendingUpload}
                 className="flex-1 py-2 text-sm rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
               >
-                Upload
+                {t('analytics.upload', 'Upload')}
               </button>
             </div>
           </div>

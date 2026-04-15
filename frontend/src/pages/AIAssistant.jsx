@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { chatWithAdvisor, clearAdvisorSession } from '../api';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const AD_GENERATE_PATTERN = /\b(generate|create|make|save|turn|convert)\b.{0,30}\b(ads?|advertisements?|campaigns?|posts?)\b/i;
 const EXPIRING_PATTERN    = /\bexpir(ing|ed|es?)\b|\babout to expire\b|\bclearance\b/i;
@@ -47,6 +48,7 @@ const INITIAL_MESSAGE = {
 };
 
 export default function AIAssistant() {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
@@ -207,13 +209,13 @@ export default function AIAssistant() {
       {/* Top bar */}
       <div className="flex items-center justify-between shrink-0">
         <p className="text-xs text-slate-400 dark:text-gray-500">
-          Powered by Mistral Large · context-aware retail advisor
+          {t('assistant.poweredBy', 'Powered by Mistral Large · context-aware retail advisor')}
         </p>
         <button
           onClick={handleClear}
           className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
         >
-          <Trash2 size={13} /> Clear chat
+          <Trash2 size={13} /> {t('assistant.clearChat', 'Clear chat')}
         </button>
       </div>
 
@@ -233,8 +235,8 @@ export default function AIAssistant() {
                 <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-4 flex items-center gap-3">
                   <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-gray-200">Generating ad drafts…</p>
-                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Extracting products and writing captions</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{t('assistant.adGenerating', 'Generating ad drafts…')}</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{t('assistant.adGeneratingSub', 'Extracting products and writing captions')}</p>
                   </div>
                 </div>
               ) : msg.adResult ? (
@@ -244,7 +246,9 @@ export default function AIAssistant() {
                       <div className="flex items-center gap-2">
                         <CheckCircle size={15} className="text-emerald-500 shrink-0" />
                         <p className="text-sm font-semibold text-slate-800 dark:text-gray-100">
-                          {msg.adResult.count} ad draft{msg.adResult.count !== 1 ? 's' : ''} saved
+                          {msg.adResult.count === 1
+                            ? t('assistant.adDraftsSaved', '{{count}} ad draft saved', { count: msg.adResult.count })
+                            : t('assistant.adDraftsSavedPlural', '{{count}} ad drafts saved', { count: msg.adResult.count })}
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -262,13 +266,13 @@ export default function AIAssistant() {
                         to="/marketing"
                         className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
                       >
-                        <ExternalLink size={11} /> View in Marketing → Drafts
+                        <ExternalLink size={11} /> {t('assistant.viewInMarketing', 'View in Marketing → Drafts')}
                       </Link>
                     </>
                   ) : (
                     <div className="flex items-center gap-2">
                       <AlertCircle size={15} className="text-amber-500 shrink-0" />
-                      <p className="text-sm text-slate-600 dark:text-gray-300">No products found in the previous response. Ask me for campaign suggestions first.</p>
+                      <p className="text-sm text-slate-600 dark:text-gray-300">{t('assistant.noProducts', 'No products found in the previous response. Ask me for campaign suggestions first.')}</p>
                     </div>
                   )}
                 </div>
@@ -293,7 +297,7 @@ export default function AIAssistant() {
                   className="flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500 hover:text-indigo-500 transition-colors ml-1"
                 >
                   {ttsLoading === i ? <Loader2 size={11} className="animate-spin" /> : <Volume2 size={11} />}
-                  {ttsLoading === i ? 'Loading…' : 'Play'}
+                  {ttsLoading === i ? t('assistant.loading', 'Loading…') : t('assistant.play', 'Play')}
                 </button>
               )}
 
@@ -355,7 +359,7 @@ export default function AIAssistant() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          placeholder={recording ? 'Recording… click mic to stop' : 'Ask me anything about your store…'}
+          placeholder={recording ? t('assistant.recordingPlaceholder', 'Recording… click mic to stop') : t('assistant.placeholder', 'Ask me anything about your store…')}
           className="flex-1 px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
         />
         <button

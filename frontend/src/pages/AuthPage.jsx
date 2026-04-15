@@ -218,9 +218,17 @@ function SetupView({ onBack, onDone }) {
     }
   };
 
+  const { t } = useTranslation();
+
   const cardCls = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-7';
   const hintCls = 'text-xs text-slate-400 dark:text-gray-500';
   const titleCls = 'text-slate-900 dark:text-white text-lg font-semibold mb-6 leading-snug';
+
+  // For language step keep option labels as-is (language names don't translate)
+  const getOptionLabel = (stepId, opt) =>
+    stepId === 'language' ? opt.label : t(`settings.options.${opt.value}.label`, opt.label);
+  const getOptionSub = (stepId, opt) =>
+    stepId === 'language' ? opt.sub : t(`settings.options.${opt.value}.sub`, opt.sub);
 
   return (
     <div className="w-full max-w-lg">
@@ -239,16 +247,16 @@ function SetupView({ onBack, onDone }) {
           <>
             <div className="flex items-center gap-2 mb-1">
               <Store size={14} className="text-indigo-500" />
-              <span className={hintCls}>Your store identity</span>
+              <span className={hintCls}>{t('wizard.steps.storeName.hint', 'Your store identity')}</span>
             </div>
-            <h2 className={titleCls}>What's your store called?</h2>
+            <h2 className={titleCls}>{t('wizard.steps.storeName.question', "What's your store called?")}</h2>
             <input
               type="text"
               autoFocus
               value={storeName}
               onChange={e => setStoreName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && canNext && next()}
-              placeholder="e.g. Green Valley Grocery"
+              placeholder={t('wizard.steps.storeName.placeholder', 'e.g. Green Valley Grocery')}
               className="w-full px-4 py-3 rounded-xl text-sm transition-colors
                 bg-slate-50 dark:bg-gray-800
                 border border-slate-200 dark:border-gray-700
@@ -261,9 +269,9 @@ function SetupView({ onBack, onDone }) {
           <>
             <div className="flex items-center gap-2 mb-1">
               {optStep && <optStep.icon size={14} className="text-indigo-500" />}
-              <span className={hintCls}>{optStep?.hint}</span>
+              <span className={hintCls}>{t(`wizard.steps.${optStep?.id}.hint`, optStep?.hint)}</span>
             </div>
-            <h2 className={titleCls}>{optStep?.question}</h2>
+            <h2 className={titleCls}>{t(`wizard.steps.${optStep?.id}.question`, optStep?.question)}</h2>
             <div className="grid grid-cols-2 gap-3">
               {optStep?.options.map(opt => {
                 const active = answers[optStep.id] === opt.value;
@@ -282,9 +290,9 @@ function SetupView({ onBack, onDone }) {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-medium">{opt.label}</p>
+                        <p className="text-sm font-medium">{getOptionLabel(optStep.id, opt)}</p>
                         <p className={`text-xs mt-0.5 ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                          {opt.sub}
+                          {getOptionSub(optStep.id, opt)}
                         </p>
                       </div>
                       {active && (
@@ -309,7 +317,7 @@ function SetupView({ onBack, onDone }) {
             hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={15} />
-          {step === 0 ? 'Back' : 'Previous'}
+          {step === 0 ? t('wizard.back', 'Back') : t('wizard.previous', 'Previous')}
         </button>
 
         <button
@@ -319,13 +327,13 @@ function SetupView({ onBack, onDone }) {
             disabled:opacity-40 disabled:cursor-not-allowed
             text-white text-sm font-medium rounded-xl transition-colors"
         >
-          {isLast ? 'Get Started' : 'Next'}
+          {isLast ? t('wizard.getStarted', 'Get Started') : t('wizard.next', 'Next')}
           {!isLast && <ChevronRight size={15} />}
         </button>
       </div>
 
       <p className="text-center text-xs text-slate-400 dark:text-gray-600 mt-5">
-        Step {step + 1} of {TOTAL_STEPS} · Your answers stay on this device
+        {t('wizard.stepProgress', 'Step {{step}} of {{total}} · Your answers stay on this device', { step: step + 1, total: TOTAL_STEPS })}
       </p>
     </div>
   );
