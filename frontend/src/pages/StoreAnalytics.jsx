@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  AreaChart, Area, BarChart, Bar, Line, ComposedChart,
+  PieChart, Pie, Cell, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceDot, ScatterChart, Scatter, ZAxis,
+} from 'recharts';
 
 const ANALYTICS_PERIODS = [
   { key: 'daily',   label: 'Daily',   days: 7  },
@@ -25,12 +30,12 @@ function PeriodFilter({ period, onChange }) {
 import {
   Plus, MapPin, Clock, RefreshCw, Edit2, Trash2, AlertTriangle,
   Camera, Upload, Play, Loader2, CheckCircle, Footprints,
-  Pause, SkipBack, SkipForward, Users, Activity, Wind,
+  Pause, SkipBack, SkipForward, Users, Activity, Wind, TrendingUp,
 } from 'lucide-react';
 import {
   listFloorPlans, deleteFloorPlan,
   uploadCameraVideo, processFloorPlan, getFloorPlanStatus,
-  getFloorPlanTrajectories,
+  getFloorPlanTrajectories, getSalesSummary,
 } from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 import { useTheme } from '../context/ThemeContext';
@@ -59,6 +64,7 @@ export default function StoreAnalytics() {
   const [recordedAt, setRecordedAt]     = useState('');
   const [pendingUpload, setPendingUpload] = useState(null); // { camId, file, recordedAt }
   const [period, setPeriod]             = useState('monthly');
+  const [sales, setSales]               = useState(null);
   const pollRef                         = useRef(null);
 
   const loadData = async () => {
@@ -75,6 +81,7 @@ export default function StoreAnalytics() {
   };
 
   useEffect(() => { loadData(); }, []);
+  useEffect(() => { getSalesSummary().then(r => setSales(r?.data)).catch(() => {}); }, []);
 
   useEffect(() => {
     setVideoUploads({});
@@ -178,6 +185,15 @@ export default function StoreAnalytics() {
   };
 
   const isProcessing = processing || selectedFloor?.status === 'processing';
+
+  const periodDays     = ANALYTICS_PERIODS.find(p => p.key === period)?.days ?? 90;
+  const filteredTrends = useMemo(() => sales?.trends?.slice(-periodDays) || [], [sales, periodDays]);
+  const axisColor      = dark ? '#6b7280' : '#94a3b8';
+  const tooltipStyle   = dark
+    ? { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', borderRadius: 10 }
+    : { backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 };
+
+  const PIE_COLORS = ['#2563EB', '#F97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#ef4444'];
 
   return (
     <div className="space-y-5">
@@ -501,6 +517,322 @@ export default function StoreAnalytics() {
           trajectories={trajectories}
           loading={trajLoading}
         />
+      )}
+
+      {/* ─── Sales Analytics ──────────────────────────────────── */}
+      {sales && (
+        <div className="space-y-5 animate-fade-in-up">
+
+          {/* KPI row 1 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Total Revenue</p>
+              <p className="text-xl font-bold text-slate-800 dark:text-gray-100">₹{(sales.total_revenue || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div className={`${CARD} p-4 border-emerald-100 dark:border-emerald-900/40`}>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-1 flex items-center gap-1">
+                <TrendingUp size={11} /> Total Profit
+              </p>
+              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">₹{(sales.total_profit || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Items Sold</p>
+              <p className="text-xl font-bold text-slate-800 dark:text-gray-100">{(sales.total_items_sold || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Avg Order Value</p>
+              <p className="text-xl font-bold text-slate-800 dark:text-gray-100">
+                {sales.avg_order_value ? `₹${sales.avg_order_value.toLocaleString('en-IN')}` : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* KPI row 2 — growth + day insights */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Week-over-Week Growth</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-xl font-bold ${
+                  sales.growth_pct > 0 ? 'text-emerald-600 dark:text-emerald-400'
+                  : sales.growth_pct < 0 ? 'text-red-600 dark:text-red-400'
+                  : 'text-slate-700 dark:text-gray-200'
+                }`}>
+                  {sales.growth_pct > 0 ? '+' : ''}{(sales.growth_pct || 0).toFixed(1)}%
+                </p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  sales.trend_direction === 'up'   ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                  : sales.trend_direction === 'down' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'
+                  : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400'
+                }`}>
+                  {sales.trend_direction === 'up' ? '↑ Up' : sales.trend_direction === 'down' ? '↓ Down' : '→ Stable'}
+                </span>
+              </div>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Best Day</p>
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{sales.peak_day || '—'}</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-1">Worst Day</p>
+              <p className="text-xl font-bold text-slate-700 dark:text-gray-300">{sales.worst_day || '—'}</p>
+            </div>
+          </div>
+
+          {/* Revenue trend with MA7 + anomaly markers */}
+          {filteredTrends.length > 0 && (
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
+                  Revenue Trend
+                  <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">
+                    ({period === 'daily' ? 'last 7 days' : period === 'weekly' ? 'last 4 weeks' : 'last 90 days'})
+                  </span>
+                </h3>
+                <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-gray-500">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-500 rounded-full inline-block" /> Revenue</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-orange-400 rounded-full inline-block" /> 7-day MA</span>
+                  {sales.anomalies?.length > 0 && <>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-500 rounded-full inline-block" /> Spike</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-500 rounded-full inline-block" /> Drop</span>
+                  </>}
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <ComposedChart data={filteredTrends} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="saRevGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                    tickFormatter={v => v ? v.slice(5) : ''} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                    tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip contentStyle={tooltipStyle}
+                    formatter={(v, name) => [`₹${Number(v).toLocaleString('en-IN')}`, name === 'revenue' ? 'Revenue' : '7-day MA']} />
+                  <Area type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2} fill="url(#saRevGrad)" dot={false} />
+                  <Line type="monotone" dataKey="ma7" stroke="#F97316" strokeWidth={2} dot={false} strokeDasharray="5 3" />
+                  {(sales.anomalies || [])
+                    .filter(a => filteredTrends.some(t => t.date === a.date))
+                    .map((a, i) => (
+                      <ReferenceDot key={i} x={a.date} y={a.revenue}
+                        r={5} fill={a.type === 'spike' ? '#10b981' : '#ef4444'}
+                        stroke="white" strokeWidth={1.5}
+                        label={{ value: a.type === 'spike' ? '▲' : '▼', position: 'top', fontSize: 9,
+                          fill: a.type === 'spike' ? '#10b981' : '#ef4444' }} />
+                    ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Forecast chart */}
+          {sales.forecast_7d?.length > 0 && (
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
+                  7-Day Revenue Forecast
+                  <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">Linear regression projection</span>
+                </h3>
+                <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-gray-500">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-400 rounded-full inline-block opacity-60" /> Historical</span>
+                  <span className="flex items-center gap-1.5"><span className="w-5 h-0.5 bg-violet-500 inline-block" style={{ borderTop: '2px dashed #8b5cf6' }} /> Forecast</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={180}>
+                <ComposedChart
+                  data={[
+                    ...sales.trends.slice(-7).map(t => ({ label: t.date.slice(5), actual: t.revenue })),
+                    ...sales.forecast_7d.map(f => ({ label: `+${f.day}d`, forecast: f.forecast_revenue })),
+                  ]}
+                  margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                >
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                    tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip contentStyle={tooltipStyle}
+                    formatter={(v, name) => [`₹${Number(v).toLocaleString('en-IN')}`, name === 'actual' ? 'Actual' : 'Forecast']} />
+                  <Area type="monotone" dataKey="actual" stroke="#2563EB" strokeWidth={2}
+                    fill="#2563EB" fillOpacity={0.08} dot={false} />
+                  <Line type="monotone" dataKey="forecast" stroke="#8b5cf6" strokeWidth={2}
+                    dot={{ r: 3, fill: '#8b5cf6' }} strokeDasharray="6 3" connectNulls={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Category charts */}
+          {sales.categories?.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className={`${CARD} p-5`}>
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">Revenue by Category</h3>
+                <div className="flex items-center gap-4">
+                  <ResponsiveContainer width="55%" height={200}>
+                    <PieChart>
+                      <Pie data={sales.categories} dataKey="revenue" nameKey="category"
+                        cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={3}>
+                        {sales.categories.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} formatter={v => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex-1 space-y-2">
+                    {sales.categories.map((cat, i) => {
+                      const total = sales.categories.reduce((s, c) => s + c.revenue, 0);
+                      const pct = total > 0 ? ((cat.revenue / total) * 100).toFixed(1) : 0;
+                      return (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                          <span className="text-xs text-slate-600 dark:text-gray-300 truncate flex-1">{cat.category}</span>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-gray-200 shrink-0">{pct}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className={`${CARD} p-5`}>
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">
+                  Category Performance
+                  <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">revenue · units sold</span>
+                </h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={[...sales.categories].sort((a, b) => b.revenue - a.revenue).slice(0, 6)}
+                    layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }} barCategoryGap="30%">
+                    <XAxis type="number" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                      tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} width={72} />
+                    <Tooltip contentStyle={tooltipStyle}
+                      formatter={(v, name) => [name === 'revenue' ? `₹${Number(v).toLocaleString('en-IN')}` : v.toLocaleString('en-IN'), name === 'revenue' ? 'Revenue' : 'Units']} />
+                    <Bar dataKey="revenue" fill="#2563EB" radius={[0, 4, 4, 0]} barSize={10} />
+                    <Bar dataKey="quantity" fill="#F97316" radius={[0, 4, 4, 0]} barSize={10} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* Underperforming products — horizontal scroll, vertical bars */}
+          {sales.underperforming_products?.length > 0 && (() => {
+            const sorted = [...sales.underperforming_products].sort((a, b) => a.decline_ratio - b.decline_ratio);
+            const BAR_W  = 72; // px per product
+            const chartW = Math.max(sorted.length * BAR_W, 400);
+            return (
+              <div className={`${CARD} p-5`}>
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-1">
+                  Underperforming Products
+                </h3>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
+                  Recent 14-day revenue share &lt; 20% — these products are declining
+                </p>
+                {/* Scroll hint */}
+                {sorted.length * BAR_W > 600 && (
+                  <p className="text-[10px] text-slate-400 dark:text-gray-500 mb-2 flex items-center gap-1">
+                    <span>←</span> scroll to see all {sorted.length} products <span>→</span>
+                  </p>
+                )}
+                <div className="overflow-x-auto cursor-grab active:cursor-grabbing"
+                  onMouseDown={e => {
+                    const el = e.currentTarget;
+                    let startX = e.pageX - el.offsetLeft;
+                    let scrollLeft = el.scrollLeft;
+                    const onMove = ev => { el.scrollLeft = scrollLeft - (ev.pageX - el.offsetLeft - startX); };
+                    const onUp   = () => { el.removeEventListener('mousemove', onMove); el.removeEventListener('mouseup', onUp); };
+                    el.addEventListener('mousemove', onMove);
+                    el.addEventListener('mouseup', onUp);
+                  }}>
+                  <div style={{ width: chartW, minWidth: '100%' }}>
+                    <BarChart width={chartW} height={220}
+                      data={sorted}
+                      margin={{ top: 8, right: 12, bottom: 60, left: 0 }}
+                    >
+                      <XAxis dataKey="product_name" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                        angle={-35} textAnchor="end" interval={0} />
+                      <YAxis domain={[0, 1]} tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
+                        tickFormatter={v => `${(v * 100).toFixed(0)}%`} width={36} />
+                      <Tooltip contentStyle={tooltipStyle}
+                        formatter={v => [`${(v * 100).toFixed(1)}% recent revenue share`, 'Decline Ratio']} />
+                      <Bar dataKey="decline_ratio" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Product clusters scatter */}
+          {sales.product_clusters?.length > 0 && (() => {
+            const clusterColors = ['#2563EB', '#F97316', '#10b981'];
+            const clusterNames  = ['Cluster A', 'Cluster B', 'Cluster C'];
+            const byCluster = [0, 1, 2].map(c =>
+              sales.product_clusters.filter(p => p.cluster === c)
+            ).filter(g => g.length > 0);
+            // build scatter data using top_products for revenue/quantity lookup
+            const lookup = Object.fromEntries((sales.top_products || []).map(p => [p.name, p]));
+            const scatterData = sales.product_clusters.map(p => ({
+              name:   p.product_name,
+              x:      lookup[p.product_name]?.quantity || 0,
+              y:      lookup[p.product_name]?.revenue  || 0,
+              cluster: p.cluster,
+              under:  p.is_underperforming,
+            }));
+            const clusters = [...new Set(scatterData.map(d => d.cluster))].sort();
+            return (
+              <div className={`${CARD} p-5`}>
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-1">Product Clusters</h3>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
+                  KMeans(3) — products grouped by revenue × quantity. Red outlines = underperforming cluster.
+                </p>
+                <div className="flex items-center gap-4 mb-3 flex-wrap">
+                  {clusters.map(c => (
+                    <span key={c} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-400">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: clusterColors[c % 3] }} />
+                      {clusterNames[c % 3]}
+                    </span>
+                  ))}
+                  <span className="flex items-center gap-1.5 text-xs text-red-500">
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-red-500 bg-transparent inline-block" /> Underperforming
+                  </span>
+                </div>
+                <ResponsiveContainer width="100%" height={240}>
+                  <ScatterChart margin={{ top: 4, right: 20, bottom: 20, left: 0 }}>
+                    <XAxis type="number" dataKey="x" name="Qty" tick={{ fontSize: 10, fill: axisColor }}
+                      axisLine={false} tickLine={false} label={{ value: 'Units Sold', position: 'insideBottom', offset: -12, fontSize: 10, fill: axisColor }} />
+                    <YAxis type="number" dataKey="y" name="Revenue" tick={{ fontSize: 10, fill: axisColor }}
+                      axisLine={false} tickLine={false} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                    <ZAxis range={[40, 40]} />
+                    <Tooltip contentStyle={tooltipStyle}
+                      content={({ payload }) => {
+                        if (!payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div style={tooltipStyle} className="px-3 py-2 text-xs">
+                            <p className="font-semibold mb-1">{d.name}</p>
+                            <p>Units: {d.x}</p>
+                            <p>Revenue: ₹{(d.y || 0).toLocaleString('en-IN')}</p>
+                            {d.under && <p className="text-red-500 mt-1">⚠ Underperforming</p>}
+                          </div>
+                        );
+                      }} />
+                    {clusters.map(c => (
+                      <Scatter key={c}
+                        data={scatterData.filter(d => d.cluster === c)}
+                        fill={clusterColors[c % 3]}
+                        shape={props => {
+                          const { cx, cy, payload } = props;
+                          return payload.under
+                            ? <circle cx={cx} cy={cy} r={6} fill={clusterColors[c % 3]} stroke="#ef4444" strokeWidth={2} />
+                            : <circle cx={cx} cy={cy} r={5} fill={clusterColors[c % 3]} fillOpacity={0.75} />;
+                        }}
+                      />
+                    ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       {/* Modals */}

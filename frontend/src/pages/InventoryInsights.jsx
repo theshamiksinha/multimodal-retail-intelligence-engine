@@ -469,51 +469,145 @@ export default function InventoryInsights() {
         </div>
       )}
 
-      {/* Revenue trend for period */}
-      {filteredTrends.length > 0 && (
+      {/* Stockout Risk */}
+      {inventory?.stockout_risk?.length > 0 && (
         <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
-              Revenue Trend
-              <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">
-                ({period === 'daily' ? 'last 7 days' : period === 'weekly' ? 'last 4 weeks' : 'last 90 days'})
-              </span>
-            </h3>
-            <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
-              ₹{filteredTrends.reduce((s, d) => s + (d.revenue || 0), 0).toLocaleString('en-IN')}
-            </p>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-1 flex items-center gap-2">
+            <AlertTriangle size={14} className="text-red-500" />
+            Stockout Risk
+          </h3>
+          <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
+            Products where days of cover is less than supplier lead time — order soon
+          </p>
+          <div className="space-y-2">
+            {inventory.stockout_risk.map((item, i) => {
+              const cover = item.days_of_cover ?? 0;
+              const lead  = item.supplier_lead_days ?? 1;
+              const urgency = cover === 0 ? 'critical' : cover < lead / 2 ? 'high' : 'medium';
+              return (
+                <div key={i} className={`flex items-center justify-between p-3 rounded-xl ${
+                  urgency === 'critical' ? 'bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40'
+                  : urgency === 'high'   ? 'bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/40'
+                  : 'bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40'
+                }`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 dark:text-gray-100 truncate">{item.product_name}</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">{item.category} · {item.current_stock} units left</p>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <p className={`text-sm font-bold ${urgency === 'critical' ? 'text-red-600 dark:text-red-400' : urgency === 'high' ? 'text-orange-600 dark:text-orange-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {cover === 0 ? 'Out of cover' : `${cover.toFixed(1)}d cover`}
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500">Lead: {lead}d</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={filteredTrends} barSize={period === 'daily' ? 20 : period === 'weekly' ? 10 : 5}>
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
-                tickFormatter={v => v ? v.slice(5) : ''} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false}
-                tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+        </div>
+      )}
+
+      {/* Slow Moving Inventory */}
+      {inventory?.slow_moving_inventory?.length > 0 && (
+        <div className={`${CARD} p-5`}>
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-1 flex items-center gap-2">
+            <TrendingDown size={14} className="text-amber-500" />
+            Slow Moving Inventory
+          </h3>
+          <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
+            Bottom 25th percentile by units sold — consider promotions or markdowns
+          </p>
+          <ResponsiveContainer width="100%" height={Math.max(160, inventory.slow_moving_inventory.length * 36)}>
+            <BarChart
+              data={[...inventory.slow_moving_inventory].sort((a, b) => (a.total_sold ?? 0) - (b.total_sold ?? 0))}
+              layout="vertical"
+              margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+            >
+              <XAxis type="number" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="product_name" tick={{ fontSize: 10, fill: axisColor }}
+                axisLine={false} tickLine={false} width={130}
+                tickFormatter={v => v?.length > 18 ? v.slice(0, 16) + '…' : v} />
               <Tooltip contentStyle={tooltipStyle}
-                formatter={v => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
-              <Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
+                formatter={(v) => [v + ' units', 'Total Sold']} />
+              <Bar dataKey="total_sold" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={12} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Slow movers chart */}
-      {sales?.slow_movers && (
+      {/* Dead Stock */}
+      {inventory?.dead_stock?.length > 0 && (
         <div className={`${CARD} p-5`}>
-          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">
-            Slowest Moving Products
-            <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">
-              ({period === 'daily' ? 'last 7 days' : period === 'weekly' ? 'last 4 weeks' : 'last 90 days'})
+          <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-1 flex items-center gap-2">
+            <Package size={14} className="text-slate-400 dark:text-gray-500" />
+            Dead Stock
+            <span className="ml-1 px-2 py-0.5 bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 rounded-full text-xs font-normal">
+              {inventory.dead_stock.length} products · zero sales
             </span>
           </h3>
-          <ResponsiveContainer width="100%" height={230}>
-            <BarChart data={sales.slow_movers}>
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="quantity" fill="#F97316" radius={[6, 6, 0, 0]} />
+          <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
+            These products have never sold a single unit — review pricing or discontinue
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-gray-800">
+                  <th className="pb-2 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Product</th>
+                  <th className="pb-2 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Category</th>
+                  <th className="pb-2 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Stock</th>
+                  <th className="pb-2 text-right text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
+                {inventory.dead_stock.map((item, i) => (
+                  <tr key={i} className="hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="py-2.5 font-medium text-slate-800 dark:text-gray-200">{item.product_name}</td>
+                    <td className="py-2.5 text-slate-500 dark:text-gray-400">{item.category}</td>
+                    <td className="py-2.5 text-right text-slate-700 dark:text-gray-300">{item.current_stock}</td>
+                    <td className="py-2.5 text-right text-slate-700 dark:text-gray-300">₹{(item.stock_value || 0).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Overstock chart */}
+      {inventory?.overstock?.length > 0 && (
+        <div className={`${CARD} p-5`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-2">
+              <Package size={14} className="text-violet-500" />
+              Overstocked Items
+              <span className="ml-1 text-xs font-normal text-slate-400 dark:text-gray-500">
+                — {inventory.overstock.length} products with excess stock
+              </span>
+            </h3>
+          </div>
+          <ResponsiveContainer width="100%" height={Math.max(180, inventory.overstock.length * 36)}>
+            <BarChart
+              data={inventory.overstock.map(item => ({
+                name: item.product_name.length > 20 ? item.product_name.slice(0, 18) + '…' : item.product_name,
+                current_stock: item.current_stock,
+                reorder_point: item.reorder_point,
+              }))}
+              layout="vertical"
+              margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+              barCategoryGap="25%"
+            >
+              <XAxis type="number" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: axisColor }} axisLine={false} tickLine={false} width={130} />
+              <Tooltip contentStyle={tooltipStyle}
+                formatter={(v, name) => [v + ' units', name === 'current_stock' ? 'Current Stock' : 'Reorder Point']} />
+              <Bar dataKey="current_stock" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={12} name="current_stock" />
+              <Bar dataKey="reorder_point" fill="#e2e8f0" radius={[0, 4, 4, 0]} barSize={12} name="reorder_point" />
             </BarChart>
           </ResponsiveContainer>
+          <div className="flex gap-5 mt-3 text-xs text-slate-400 dark:text-gray-500">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-2 bg-violet-500 rounded-sm inline-block" /> Current Stock</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-2 bg-slate-200 dark:bg-gray-600 rounded-sm inline-block" /> Reorder Point</span>
+          </div>
         </div>
       )}
     </div>

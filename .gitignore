@@ -64,6 +64,9 @@ temp/
 Project_Idea.pdf
 data_copy
 changes_requested_by_pankhuri
+backend/static
+backend/uploads
+backend/data
 
 # Package lock files (uncomment only if needed)
 # package-lock.json

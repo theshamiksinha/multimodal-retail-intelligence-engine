@@ -177,7 +177,7 @@ function MunimJi() {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    content: "Namaste! I'm Munim Ji, your AI retail advisor. Ask me anything about your sales, inventory, or store performance. 🙏",
+    content: "Namaste! 🙏 Main hoon Munim Ji — your store's AI advisor. Ask me about sales, inventory, expiring products, or anything else about your store!",
   }]);
   const messagesEndRef = useRef(null);
 
@@ -214,13 +214,13 @@ function MunimJi() {
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center gap-3 shrink-0">
-            {/* Mascot avatar — white bg container, inverted image gives dark illustration */}
-            <div className="w-11 h-11 rounded-2xl overflow-hidden bg-white shrink-0 border-2 border-white/30 shadow-sm">
+            {/* Mascot: dark-blue bg so the white illustration shows naturally */}
+            <div className="w-11 h-11 rounded-2xl overflow-hidden bg-white shrink-0 border-2 border-blue-100 flex items-end justify-center">
               <img
                 src={mascotImg}
                 alt="Munim Ji"
-                className="w-full h-full object-cover object-top"
-                style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(4px)' }}
+                className="w-[120%] object-cover object-top"
+                style={{ transform: 'translateY(3px)', filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }}
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -244,10 +244,10 @@ function MunimJi() {
               <div key={i} className={`flex gap-2 animate-fade-in-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 mt-0.5
-                    bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
+                    bg-white border border-blue-100 flex items-end justify-center">
                     <img src={mascotImg} alt="Munim Ji"
-                      className="w-full h-full object-cover object-top"
-                      style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
+                      className="w-[120%] object-cover"
+                      style={{ transform: 'translateY(2px)', filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }} />
                   </div>
                 )}
                 <div className={`max-w-[76%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
@@ -262,9 +262,9 @@ function MunimJi() {
             {loading && (
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full overflow-hidden shrink-0
-                  bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
-                  <img src={mascotImg} alt="" className="w-full h-full object-cover object-top"
-                    style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
+                  bg-white border border-blue-100 flex items-end justify-center">
+                  <img src={mascotImg} alt="" className="w-[120%] object-cover"
+                    style={{ transform: 'translateY(2px)' }} />
                 </div>
                 <div className="bg-slate-100 dark:bg-gray-800 rounded-2xl rounded-bl-sm px-3 py-2 flex gap-1.5 items-center">
                   {[0, 150, 300].map(d => (
@@ -309,11 +309,11 @@ function MunimJi() {
           transition-all duration-200 hover:scale-110 active:scale-95
           ${open
             ? 'bg-slate-100 dark:bg-gray-800 border-2 border-slate-300 dark:border-gray-600'
-            : 'bg-white border-[3px] border-blue-600 animate-glow-ring'
+            : 'bg-white border-[3px] border-orange-400 animate-glow-ring'
           }`}
       >
         {open ? (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-gray-800">
             <X size={22} className="text-slate-600 dark:text-gray-300" />
           </div>
         ) : (
@@ -321,7 +321,7 @@ function MunimJi() {
             src={mascotImg}
             alt="Munim Ji"
             className="w-full h-full object-cover object-top"
-            style={{ filter: 'invert(1)', transform: 'scale(1.2) translateY(6px)' }}
+            style={{ transform: 'scale(1.15) translateY(6px)', filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }}
           />
         )}
         {!open && (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ChevronRight, ChevronLeft, Check,
-  Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe,
+  Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe, User, Store as StoreIcon,
 } from 'lucide-react';
 import appLogo   from '../assets/app_logo.png';
 import mascotImg from '../assets/mascot_for_chatbot.png';
@@ -9,54 +9,79 @@ import { SETUP_KEY } from '../components/SetupWizard';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
-const OPTION_STEPS = [
+// Step definitions — type: 'options' | 'text' | 'profile'
+const STEPS = [
   {
+    type: 'options',
     id: 'language',
     icon: Globe,
     question: 'What language do you prefer?',
     hint: 'Choose your display language',
     options: [
-      { value: 'en', label: 'English',         sub: 'English interface' },
-      { value: 'hi', label: 'हिंदी (Hindi)',   sub: 'हिंदी इंटरफ़ेस' },
+      { value: 'en', label: 'English',       sub: 'English interface' },
+      { value: 'hi', label: 'हिंदी (Hindi)', sub: 'हिंदी इंटरफ़ेस' },
     ],
   },
   {
+    type: 'profile',
+    id: 'profile',
+    icon: User,
+    question: 'Tell us about yourself',
+    hint: 'Your name and role in the store',
+    roles: [
+      { value: 'owner',   label: 'Owner',   sub: 'I run the store' },
+      { value: 'manager', label: 'Manager', sub: 'I manage operations' },
+      { value: 'partner', label: 'Partner', sub: 'Business co-owner' },
+      { value: 'staff',   label: 'Staff',   sub: 'Team member' },
+    ],
+  },
+  {
+    type: 'text',
+    id: 'storeName',
+    icon: StoreIcon,
+    question: "What's your store called?",
+    hint: 'Your store identity',
+    placeholder: 'e.g. Sharma and Sons Kirana',
+  },
+  {
+    type: 'options',
     id: 'footfall',
     icon: Users,
     question: 'How many customers visit your store each day?',
     hint: 'Approximate daily footfall',
     options: [
-      { value: '50_200',    label: '50 – 200',   sub: 'Local convenience store' },
-      { value: '200_500',   label: '200 – 500',  sub: 'Busy high-street shop' },
-      { value: 'over_500',  label: '500+',        sub: 'High-traffic retail outlet' },
+      { value: '50_200',   label: '50 – 200', sub: 'Local convenience store' },
+      { value: '200_500',  label: '200 – 500', sub: 'Busy high-street shop' },
+      { value: 'over_500', label: '500+',      sub: 'High-traffic retail outlet' },
     ],
   },
   {
+    type: 'options',
     id: 'revenue',
     icon: DollarSign,
     question: 'What is your approximate monthly revenue?',
     hint: 'Helps us tailor analytics thresholds',
     options: [
-      { value: '10k_50k',    label: '₹10K – ₹50K',   sub: 'Growing retailer' },
-      { value: '50k_200k',   label: '₹50K – ₹200K',  sub: 'Established mid-size store' },
-      { value: 'over_200k',  label: '₹200K+',         sub: 'Large retail operation' },
+      { value: '10k_50k',   label: '₹10K – ₹50K',  sub: 'Growing retailer' },
+      { value: '50k_200k',  label: '₹50K – ₹200K', sub: 'Established mid-size store' },
+      { value: 'over_200k', label: '₹200K+',        sub: 'Large retail operation' },
     ],
   },
   {
+    type: 'options',
     id: 'size',
     icon: Maximize2,
     question: 'How would you describe your store size?',
     hint: 'Floor area helps with heatmap zone recommendations',
     options: [
-      { value: 'medium',  label: 'Small',   sub: '500 – 2,000 sq ft' },
-      { value: 'large',   label: 'Medium',  sub: '2,000 – 10,000 sq ft' },
-      { value: 'xlarge',  label: 'Large',   sub: '10,000+ sq ft' },
+      { value: 'medium', label: 'Small',  sub: '500 – 2,000 sq ft' },
+      { value: 'large',  label: 'Medium', sub: '2,000 – 10,000 sq ft' },
+      { value: 'xlarge', label: 'Large',  sub: '10,000+ sq ft' },
     ],
   },
 ];
 
-// Total steps: 0 = store name, 1-3 = option cards
-const TOTAL_STEPS = 1 + OPTION_STEPS.length;
+const TOTAL_STEPS = STEPS.length;
 
 // ── Shared layout ─────────────────────────────────────────────────────────────
 function PageShell({ children }) {
@@ -108,14 +133,14 @@ function WelcomeView({ onLogin, onSetup }) {
   return (
     <div className="w-full max-w-sm text-center">
       {/* Mascot */}
-      <div className="relative w-28 h-28 mx-auto mb-5 animate-fade-in-up delay-100">
+      <div className="relative w-44 h-44 mx-auto mb-5 animate-fade-in-up delay-100">
         <div className="w-full h-full rounded-full overflow-hidden
-          bg-white border-4 border-blue-600 shadow-xl shadow-blue-500/20">
+          bg-white border-4 border-blue-200 shadow-xl shadow-blue-500/20 flex items-center justify-center">
           <img
             src={mascotImg}
             alt="Munim Ji"
-            className="w-full h-full object-cover object-top"
-            style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(8px)' }}
+            className="w-[68%] h-[68%] object-contain"
+            style={{ filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }}
           />
         </div>
         {/* Orange AI badge */}
@@ -217,24 +242,29 @@ function LoginView({ onBack, onDone }) {
 
 // ── Setup wizard ──────────────────────────────────────────────────────────────
 function SetupView({ onBack, onDone }) {
-  const { i18n } = useTranslation();
-  const [step, setStep]         = useState(0);
-  const [storeName, setStoreName] = useState('');
-  const [answers, setAnswers]   = useState({});
+  const { i18n, t } = useTranslation();
+  const [step, setStep]           = useState(0);
+  const [textValues, setTextValues] = useState({ storeName: '', userName: '' });
+  const [answers, setAnswers]     = useState({});
 
-  // step 0 = store name, steps 1+ = option cards
-  const isNameStep = step === 0;
-  const optStep    = OPTION_STEPS[step - 1];
-  const isLast     = step === TOTAL_STEPS - 1;
-  const canNext    = isNameStep ? storeName.trim().length > 0 : !!answers[optStep?.id];
+  const currentStep = STEPS[step];
+  const isLast      = step === TOTAL_STEPS - 1;
+
+  const canNext = (() => {
+    if (currentStep.type === 'text')    return textValues[currentStep.id]?.trim().length > 0;
+    if (currentStep.type === 'profile') return textValues.userName.trim().length > 0 && !!answers.userRole;
+    return !!answers[currentStep.id];
+  })();
 
   const next = () => {
     if (isLast) {
-      const isSmall = answers.size === 'medium'; // 'medium' is the smallest option (500–2,000 sq ft)
-      const lang = answers.language || 'en';
+      const isSmall = answers.size === 'medium';
+      const lang    = answers.language || 'en';
       const data = {
-        completed: true,
-        storeName: storeName.trim(),
+        completed:  true,
+        storeName:  textValues.storeName.trim(),
+        userName:   textValues.userName.trim(),
+        userRole:   answers.userRole || 'owner',
         ...answers,
         features: { voiceEntry: isSmall, ocrEntry: isSmall },
       };
@@ -247,17 +277,134 @@ function SetupView({ onBack, onDone }) {
     }
   };
 
-  const { t } = useTranslation();
+  const inputCls = `w-full px-4 py-3 rounded-xl text-sm transition-colors
+    bg-slate-50 dark:bg-gray-800
+    border border-slate-200 dark:border-gray-700
+    text-slate-800 dark:text-white
+    placeholder:text-slate-400 dark:placeholder:text-gray-600
+    focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20`;
 
-  const cardCls = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-7';
-  const hintCls = 'text-xs text-slate-400 dark:text-gray-500';
-  const titleCls = 'text-slate-900 dark:text-white text-lg font-semibold mb-6 leading-snug';
+  const cardCls  = 'bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 p-7';
+  const hintCls  = 'text-xs text-slate-400 dark:text-gray-500';
+  const titleCls = 'text-slate-900 dark:text-white text-lg font-semibold mb-5 leading-snug';
 
-  // For language step keep option labels as-is (language names don't translate)
-  const getOptionLabel = (stepId, opt) =>
-    stepId === 'language' ? opt.label : t(`settings.options.${opt.value}.label`, opt.label);
-  const getOptionSub = (stepId, opt) =>
-    stepId === 'language' ? opt.sub : t(`settings.options.${opt.value}.sub`, opt.sub);
+  const OptionCard = ({ stepId, opt, active, onClick }) => (
+    <button
+      key={opt.value}
+      onClick={onClick}
+      className={`text-left px-4 py-3.5 rounded-xl border transition-all duration-150 ${
+        active
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-900 dark:text-white'
+          : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">{opt.label}</p>
+          <p className={`text-xs mt-0.5 ${active ? 'text-blue-600 dark:text-blue-300' : 'text-slate-400 dark:text-gray-500'}`}>
+            {opt.sub}
+          </p>
+        </div>
+        {active && (
+          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+            <Check size={9} className="text-white" />
+          </div>
+        )}
+      </div>
+    </button>
+  );
+
+  const renderStepContent = () => {
+    const { type, id, icon: Icon, question, hint, options, roles, placeholder } = currentStep;
+
+    const header = (
+      <div className="flex items-center gap-2 mb-1">
+        {Icon && <Icon size={14} className="text-blue-500" />}
+        <span className={hintCls}>{hint}</span>
+      </div>
+    );
+
+    if (type === 'text') {
+      return (
+        <>
+          {header}
+          <h2 className={titleCls}>{question}</h2>
+          <input
+            type="text"
+            autoFocus
+            value={textValues[id]}
+            onChange={e => setTextValues(v => ({ ...v, [id]: e.target.value }))}
+            onKeyDown={e => e.key === 'Enter' && canNext && next()}
+            placeholder={placeholder}
+            className={inputCls}
+          />
+        </>
+      );
+    }
+
+    if (type === 'profile') {
+      return (
+        <>
+          {header}
+          <h2 className={titleCls}>{question}</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-1.5">
+                Your name
+              </label>
+              <input
+                type="text"
+                autoFocus
+                value={textValues.userName}
+                onChange={e => setTextValues(v => ({ ...v, userName: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && textValues.userName.trim() && e.preventDefault()}
+                placeholder="e.g. Ramesh, Priya..."
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-1.5">
+                Your role
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                {roles.map(opt => (
+                  <OptionCard
+                    key={opt.value}
+                    stepId={id}
+                    opt={opt}
+                    active={answers.userRole === opt.value}
+                    onClick={() => setAnswers(a => ({ ...a, userRole: opt.value }))}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    // type === 'options'
+    return (
+      <>
+        {header}
+        <h2 className={titleCls}>{question}</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {options.map(opt => (
+            <OptionCard
+              key={opt.value}
+              stepId={id}
+              opt={opt}
+              active={answers[id] === opt.value}
+              onClick={() => {
+                setAnswers(a => ({ ...a, [id]: opt.value }));
+                if (id === 'language') i18n.changeLanguage(opt.value);
+              }}
+            />
+          ))}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="w-full max-w-lg">
@@ -272,70 +419,7 @@ function SetupView({ onBack, onDone }) {
 
       {/* Card */}
       <div className={cardCls}>
-        {isNameStep ? (
-          <>
-            <div className="flex items-center gap-2 mb-1">
-              <Store size={14} className="text-blue-500" />
-              <span className={hintCls}>{t('wizard.steps.storeName.hint', 'Your store identity')}</span>
-            </div>
-            <h2 className={titleCls}>{t('wizard.steps.storeName.question', "What's your store called?")}</h2>
-            <input
-              type="text"
-              autoFocus
-              value={storeName}
-              onChange={e => setStoreName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && canNext && next()}
-              placeholder={t('wizard.steps.storeName.placeholder', 'e.g. Green Valley Grocery')}
-              className="w-full px-4 py-3 rounded-xl text-sm transition-colors
-                bg-slate-50 dark:bg-gray-800
-                border border-slate-200 dark:border-gray-700
-                text-slate-800 dark:text-white
-                placeholder:text-slate-400 dark:placeholder:text-gray-600
-                focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-            />
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 mb-1">
-              {optStep && <optStep.icon size={14} className="text-blue-500" />}
-              <span className={hintCls}>{t(`wizard.steps.${optStep?.id}.hint`, optStep?.hint)}</span>
-            </div>
-            <h2 className={titleCls}>{t(`wizard.steps.${optStep?.id}.question`, optStep?.question)}</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {optStep?.options.map(opt => {
-                const active = answers[optStep.id] === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setAnswers(a => ({ ...a, [optStep.id]: opt.value }));
-                      if (optStep.id === 'language') i18n.changeLanguage(opt.value);
-                    }}
-                    className={`text-left px-4 py-3.5 rounded-xl border transition-all duration-150 ${
-                      active
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-600/20 text-slate-900 dark:text-white'
-                        : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 text-slate-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium">{getOptionLabel(optStep.id, opt)}</p>
-                        <p className={`text-xs mt-0.5 ${active ? 'text-blue-600 dark:text-blue-300' : 'text-slate-400 dark:text-gray-500'}`}>
-                          {getOptionSub(optStep.id, opt)}
-                        </p>
-                      </div>
-                      {active && (
-                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                          <Check size={9} className="text-white" />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
+        {renderStepContent()}
       </div>
 
       {/* Nav */}
@@ -346,7 +430,7 @@ function SetupView({ onBack, onDone }) {
             hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={15} />
-          {step === 0 ? t('wizard.back', 'Back') : t('wizard.previous', 'Previous')}
+          {step === 0 ? 'Back' : 'Previous'}
         </button>
 
         <button
@@ -356,13 +440,13 @@ function SetupView({ onBack, onDone }) {
             disabled:opacity-40 disabled:cursor-not-allowed
             text-white text-sm font-medium rounded-xl transition-colors"
         >
-          {isLast ? t('wizard.getStarted', 'Get Started') : t('wizard.next', 'Next')}
+          {isLast ? 'Get Started' : 'Next'}
           {!isLast && <ChevronRight size={15} />}
         </button>
       </div>
 
       <p className="text-center text-xs text-slate-400 dark:text-gray-600 mt-5">
-        {t('wizard.stepProgress', 'Step {{step}} of {{total}} · Your answers stay on this device', { step: step + 1, total: TOTAL_STEPS })}
+        Step {step + 1} of {TOTAL_STEPS} · Your answers stay on this device
       </p>
     </div>
   );

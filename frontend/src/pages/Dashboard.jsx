@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, AlertTriangle, MapPin, ArrowRight,
-  ChevronDown, RefreshCw, Wind, Package, Clock, Users,
+  ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Wind, Package, Clock, Users,
   Zap, Calendar,
 } from 'lucide-react';
 import {
@@ -17,8 +17,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { SETUP_KEY } from '../components/SetupWizard';
 
-function getStoreName() {
-  try { return JSON.parse(localStorage.getItem(SETUP_KEY))?.storeName || ''; } catch { return ''; }
+function getSetupData() {
+  try { return JSON.parse(localStorage.getItem(SETUP_KEY)) || {}; } catch { return {}; }
 }
 
 const CARD = 'bg-white dark:bg-gray-900 rounded-2xl border border-blue-50 dark:border-gray-800 shadow-sm card-hover';
@@ -67,7 +67,7 @@ function PeriodFilter({ period, onChange, light = false }) {
 export default function Dashboard() {
   const { dark } = useTheme();
   const { t }    = useTranslation();
-  const storeName = getStoreName();
+  const { storeName = '', userName = '' } = getSetupData();
 
   const [sales, setSales]                 = useState(null);
   const [inventory, setInventory]         = useState(null);
@@ -80,6 +80,7 @@ export default function Dashboard() {
   const [showHeatmap, setShowHeatmap]     = useState(true);
   const [showFlow, setShowFlow]           = useState(true);
   const [period, setPeriod]               = useState('monthly');
+  const [offset, setOffset]               = useState(0); // 0 = most recent, 1 = one period back, …
 
   useEffect(() => {
     Promise.all([
@@ -132,20 +133,42 @@ export default function Dashboard() {
     return p ? p.days : 90;
   }, [period]);
 
-  const filteredTrends = useMemo(() =>
-    sales?.trends?.slice(-periodDays) || [], [sales, periodDays]);
+  const maxOffset = useMemo(() => {
+    const total = sales?.trends?.length || 0;
+    return Math.max(0, Math.ceil(total / periodDays) - 1);
+  }, [sales, periodDays]);
+
+  const filteredTrends = useMemo(() => {
+    const trends = sales?.trends || [];
+    if (offset === 0) return trends.slice(-periodDays);
+    const end   = trends.length - offset * periodDays;
+    const start = Math.max(0, end - periodDays);
+    return end > 0 ? trends.slice(start, end) : [];
+  }, [sales, periodDays, offset]);
+
+  const periodLabel = useMemo(() => {
+    if (!filteredTrends.length) return '';
+    const fmt = d => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return `${fmt(filteredTrends[0].date)} – ${fmt(filteredTrends[filteredTrends.length - 1].date)}`;
+  }, [filteredTrends]);
 
   const periodRevenue = useMemo(() =>
     filteredTrends.reduce((s, d) => s + (d.revenue || 0), 0), [filteredTrends]);
 
   const revenueChange = useMemo(() => {
-    const half = Math.floor(periodDays / 2);
-    if (!sales?.trends || sales.trends.length < periodDays) return null;
-    const recent = sales.trends.slice(-half).reduce((s, d) => s + (d.revenue || 0), 0);
-    const prev   = sales.trends.slice(-periodDays, -half).reduce((s, d) => s + (d.revenue || 0), 0);
+    // Compare this period to the one immediately before it
+    const trends = sales?.trends || [];
+    if (trends.length < periodDays * 2) return null;
+    const curEnd   = trends.length - offset * periodDays;
+    const curStart = Math.max(0, curEnd - periodDays);
+    const prevEnd  = curStart;
+    const prevStart = Math.max(0, prevEnd - periodDays);
+    if (prevEnd <= prevStart) return null;
+    const cur  = trends.slice(curStart, curEnd).reduce((s, d) => s + (d.revenue || 0), 0);
+    const prev = trends.slice(prevStart, prevEnd).reduce((s, d) => s + (d.revenue || 0), 0);
     if (!prev) return null;
-    return Math.round(((recent - prev) / prev) * 100);
-  }, [sales, periodDays]);
+    return Math.round(((cur - prev) / prev) * 100);
+  }, [sales, periodDays, offset]);
 
   const lowStockItems = useMemo(() =>
     inventory?.low_stock || inventory?.items?.filter(i => i.status === 'Low') || [], [inventory]);
@@ -224,14 +247,42 @@ export default function Dashboard() {
                 <span className="text-base">{greetingEmoji}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight leading-tight">
-                Hi, {storeName || 'Store Owner'}!
+                Hi, {userName || storeName || 'there'}!
               </h1>
               <p className="text-blue-200 text-sm mt-1 font-medium">
-                {t('dashboard.subtitle', "Here's what's happening in your store")}
+                {storeName
+                  ? `Here's what's been happening at ${storeName} lately!`
+                  : "Here's what's happening in your store"}
               </p>
             </div>
-            <div className="animate-fade-in-up delay-200 shrink-0">
-              <PeriodFilter period={period} onChange={setPeriod} light />
+            <div className="animate-fade-in-up delay-200 shrink-0 flex flex-col items-end gap-2">
+              <PeriodFilter period={period} onChange={p => { setPeriod(p); setOffset(0); }} light />
+              {/* Period navigator */}
+              {sales?.trends?.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setOffset(o => Math.min(o + 1, maxOffset))}
+                    disabled={offset >= maxOffset}
+                    className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-30
+                      flex items-center justify-center text-white transition-all disabled:cursor-not-allowed"
+                    title="Previous period"
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <span className="text-[11px] font-medium text-blue-200 px-2 min-w-[130px] text-center tabular-nums">
+                    {periodLabel}
+                  </span>
+                  <button
+                    onClick={() => setOffset(o => Math.max(o - 1, 0))}
+                    disabled={offset === 0}
+                    className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 disabled:opacity-30
+                      flex items-center justify-center text-white transition-all disabled:cursor-not-allowed"
+                    title="Next period"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

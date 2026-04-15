@@ -40,11 +40,11 @@ const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID;
 
 const INITIAL_MESSAGE = {
   role: 'assistant',
-  content: "Hello! I'm your AI Retail Advisor. I have access to your store's sales data, inventory status, and customer behaviour analytics.\n\nHere are some things I can help with:\n- Store layout and product placement recommendations\n- Sales trends and product performance analysis\n- Inventory management and expiry alerts\n- Marketing campaign suggestions",
+  content: "Namaste! 🙏 I'm Munim Ji — your dedicated AI retail advisor.\n\nI've been keeping a close eye on your store's sales, inventory, and customer movement so you don't have to worry about the numbers. Think of me as your trusted munim who knows every shelf, every product, and every trend in your store.\n\nHere's what I can help you with:\n- 📊 Sales trends and product performance\n- 📦 Inventory alerts — low stock, expiring items, dead stock\n- 🗺️ Store layout and product placement tips\n- 📣 Marketing campaign ideas\n\nBas poochho — just ask!",
   suggestions: [
-    'Which products attract the most customer attention?',
-    'Which areas of my store are being overlooked?',
-    'Generate a campaign for my slowest-moving products',
+    'Kaun sa product sabse zyada bik raha hai?',
+    'Which products are about to expire?',
+    'Suggest a campaign for my slow-moving stock',
   ],
 };
 
@@ -213,12 +213,12 @@ export default function AIAssistant() {
         rounded-2xl px-5 py-3.5 shadow-md shadow-blue-500/20 animate-fade-in-up">
         <div className="flex items-center gap-3">
           {/* Mascot avatar */}
-          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white border-2 border-white/40 shadow-sm shrink-0">
+          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white border-2 border-white/40 shadow-sm shrink-0 flex items-end justify-center">
             <img
               src={mascotImg}
               alt="Munim Ji"
-              className="w-full h-full object-cover object-top"
-              style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(4px)' }}
+              className="w-[120%] object-cover object-top"
+              style={{ transform: 'translateY(4px)', filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }}
             />
           </div>
           <div>
@@ -249,10 +249,10 @@ export default function AIAssistant() {
 
             {msg.role === 'assistant' && (
               <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0 mt-0.5
-                bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
+                bg-white border border-blue-100 flex items-end justify-center">
                 <img src={mascotImg} alt="Munim Ji"
-                  className="w-full h-full object-cover object-top"
-                  style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
+                  className="w-[120%] object-cover object-top"
+                  style={{ transform: 'translateY(3px)', filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }} />
               </div>
             )}
 
@@ -353,9 +353,9 @@ export default function AIAssistant() {
         {loading && (
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-xl overflow-hidden shrink-0
-              bg-white border border-blue-200 dark:border-blue-800 shadow-sm">
-              <img src={mascotImg} alt="" className="w-full h-full object-cover object-top"
-                style={{ filter: 'invert(1)', transform: 'scale(1.15) translateY(3px)' }} />
+              bg-white border border-blue-100 flex items-end justify-center">
+              <img src={mascotImg} alt="" className="w-[120%] object-cover object-top"
+                style={{ transform: 'translateY(3px)' }} />
             </div>
             <div className="bg-slate-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-3">
               <div className="flex gap-1 items-center h-4">
