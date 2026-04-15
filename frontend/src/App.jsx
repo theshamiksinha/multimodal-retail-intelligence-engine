@@ -6,7 +6,7 @@ import mascotImg  from './assets/mascot_for_chatbot.png';
 
 const AUTH_KEY = 'retailIntelAuth';
 const isAuthed = () => { try { return !!sessionStorage.getItem(AUTH_KEY); } catch { return false; } };
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart3, Megaphone, Bot, Package,
   ChevronLeft, ChevronRight, Sun, Moon, LogOut, Settings,
@@ -22,7 +22,18 @@ import SettingsPage from './pages/SettingsPage';
 import { useTheme } from './context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { chatWithAdvisor } from './api';
+import { ROLE_SESSION_KEY } from './pages/AuthPage';
 import './index.css';
+
+// ── Role permissions ───────────────────────────────────────────────────────────
+const ROLE_PERMS = {
+  owner:   { pages: new Set(['/', '/analytics', '/marketing', '/assistant', '/inventory', '/settings']), financial: true,  label: 'Owner',   badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  partner: { pages: new Set(['/', '/analytics', '/marketing', '/assistant', '/inventory', '/settings']), financial: true,  label: 'Partner', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  manager: { pages: new Set(['/', '/analytics', '/assistant', '/inventory', '/settings']),               financial: false, label: 'Manager', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+  staff:   { pages: new Set(['/inventory', '/assistant']),                                               financial: false, label: 'Staff',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+};
+const getLoginRole = () => sessionStorage.getItem(ROLE_SESSION_KEY) || 'owner';
+const getRolePerms = () => ROLE_PERMS[getLoginRole()] || ROLE_PERMS.owner;
 
 /* ── Munim AI Logo ────────────────────────────────────────────────────── */
 function MunimLogo({ size = 32 }) {
@@ -62,6 +73,9 @@ const PAGE_TITLES = {
 /* ── Sidebar ──────────────────────────────────────────────────────────── */
 function Sidebar({ open, setOpen, onLogout }) {
   const { t } = useTranslation();
+  const perms = getRolePerms();
+  const visibleNav = navItems.filter(item => perms.pages.has(item.path));
+
   return (
     <aside className={`${open ? 'w-56' : 'w-16'} relative flex flex-col shrink-0 transition-all duration-300
       bg-white dark:bg-gray-900 border-r border-blue-50 dark:border-gray-800`}>
@@ -83,7 +97,7 @@ function Sidebar({ open, setOpen, onLogout }) {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-hidden">
-        {navItems.map(({ path, label, icon: Icon }, idx) => (
+        {visibleNav.map(({ path, label, icon: Icon }, idx) => (
           <NavLink
             key={path}
             to={path}
@@ -104,6 +118,20 @@ function Sidebar({ open, setOpen, onLogout }) {
 
       {/* Bottom utilities */}
       <div className="p-3 border-t border-blue-50 dark:border-gray-800 space-y-0.5">
+        {/* Role badge */}
+        {open && (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl mb-1 ${perms.badge}`}>
+            <span className="text-[11px] font-bold tracking-wide">{perms.label}</span>
+            <span className="text-[10px] font-medium opacity-70">· {perms.financial ? 'Full access' : 'Restricted'}</span>
+          </div>
+        )}
+        {!open && (
+          <div title={`Role: ${perms.label}`}
+            className={`w-full flex items-center justify-center px-3 py-2 rounded-xl mb-1 ${perms.badge}`}>
+            <span className="text-[10px] font-bold">{perms.label[0]}</span>
+          </div>
+        )}
+
         <NavLink
           to="/settings"
           title={!open ? 'Settings' : undefined}
@@ -189,6 +217,14 @@ function detectHinglishF(text) {
 }
 const FLOAT_LANG_HI = '\n\n[Note: User is writing in Hinglish. Please respond in Hinglish — Hindi written in Roman script, mixed naturally with English.]';
 const FLOAT_LANG_EN = '\n\n[Note: User is writing in English. Please respond in English.]';
+
+const FLOAT_ROLE_POLICY = {
+  owner:   `[SECURITY: Role=Owner. Full access — discuss all financial data freely.]`,
+  partner: `[SECURITY: Role=Partner. Full access — discuss all financial data freely.]`,
+  manager: `[SECURITY: Role=Manager. Operational access — discuss analytics and inventory. Avoid detailed profit breakdowns.]`,
+  staff:   `[SECURITY: Role=Staff. RESTRICTED. Only answer stock/inventory questions. REFUSE revenue, profit, or financial data.]`,
+};
+const getFloatRolePolicy = () => FLOAT_ROLE_POLICY[sessionStorage.getItem(ROLE_SESSION_KEY)] || FLOAT_ROLE_POLICY.owner;
 const FLOAT_INIT = {
   en: "Namaste! 🙏 Main hoon Munim Ji — your store's AI advisor. Ask me about sales, inventory, expiring products, or anything else about your store!",
   hi: "Namaste! 🙏 Main hoon Munim Ji — aapke store ka AI advisor. Sales, inventory, expiring products — kuch bhi poochho!",
@@ -230,8 +266,9 @@ function MunimJi() {
     setMessages(next);
     setLoading(true);
     try {
-      const langNote = msgLang === 'hi' ? FLOAT_LANG_HI : FLOAT_LANG_EN;
-      const res = await chatWithAdvisor(msg + langNote, 'munim-ji-float');
+      const langNote   = msgLang === 'hi' ? FLOAT_LANG_HI : FLOAT_LANG_EN;
+      const rolePolicy = getFloatRolePolicy();
+      const res = await chatWithAdvisor(msg + langNote + '\n' + rolePolicy, 'munim-ji-float');
       setMessages([...next, { role: 'assistant', content: res.data.response }]);
     } catch {
       setMessages([...next, { role: 'assistant', content: msgLang === 'hi' ? 'Yaar, abhi offline hoon. Thodi der mein try karo!' : 'I seem to be offline right now. Please try again in a moment.' }]);
@@ -373,6 +410,87 @@ function MunimJi() {
   );
 }
 
+/* ── Protected Route ──────────────────────────────────────────────────── */
+function ProtectedRoute({ path, children }) {
+  const perms = getRolePerms();
+  if (!perms.pages.has(path)) {
+    const home = getLoginRole() === 'staff' ? '/inventory' : '/';
+    return <Navigate to={home} replace />;
+  }
+  return children;
+}
+
+/* ── Inactivity timeout warning modal ────────────────────────────────── */
+const INACTIVITY_MS  = 20 * 60 * 1000; // 20 minutes
+const WARNING_BEFORE = 60;             // show warning 60s before logout
+
+function InactivityGuard({ onLogout }) {
+  const [countdown, setCountdown] = useState(null); // null = no warning
+  const warnTimerRef   = useRef(null);
+  const logoutTimerRef = useRef(null);
+  const countRef       = useRef(null);
+
+  const reset = useCallback(() => {
+    setCountdown(null);
+    clearTimeout(warnTimerRef.current);
+    clearTimeout(logoutTimerRef.current);
+    clearInterval(countRef.current);
+
+    warnTimerRef.current = setTimeout(() => {
+      setCountdown(WARNING_BEFORE);
+      let c = WARNING_BEFORE;
+      countRef.current = setInterval(() => {
+        c -= 1;
+        setCountdown(c);
+        if (c <= 0) { clearInterval(countRef.current); }
+      }, 1000);
+    }, INACTIVITY_MS - WARNING_BEFORE * 1000);
+
+    logoutTimerRef.current = setTimeout(onLogout, INACTIVITY_MS);
+  }, [onLogout]);
+
+  useEffect(() => {
+    const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+    const handler = () => reset();
+    events.forEach(e => document.addEventListener(e, handler, { passive: true }));
+    reset();
+    return () => {
+      events.forEach(e => document.removeEventListener(e, handler));
+      clearTimeout(warnTimerRef.current);
+      clearTimeout(logoutTimerRef.current);
+      clearInterval(countRef.current);
+    };
+  }, [reset]);
+
+  if (countdown === null) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-gray-700 p-7 max-w-sm w-full text-center animate-fade-in-up">
+        <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{countdown}</span>
+        </div>
+        <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1">Still there?</h3>
+        <p className="text-sm text-slate-400 dark:text-gray-500 mb-5">
+          You'll be logged out in <span className="font-semibold text-amber-600 dark:text-amber-400">{countdown}s</span> due to inactivity.
+        </p>
+        <button
+          onClick={reset}
+          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+        >
+          Stay logged in
+        </button>
+        <button
+          onClick={onLogout}
+          className="mt-2 w-full py-2 text-xs text-slate-400 dark:text-gray-600 hover:text-red-500 transition-colors"
+        >
+          Log out now
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── App ──────────────────────────────────────────────────────────────── */
 function App() {
   const [open, setOpen]     = useState(true);
@@ -380,13 +498,15 @@ function App() {
   const [authed, setAuthed] = useState(isAuthed);
   const hideSplash = useCallback(() => setSplash(false), []);
 
-  const handleAuthDone = useCallback(() => {
+  const handleAuthDone = useCallback((role = 'owner') => {
     sessionStorage.setItem(AUTH_KEY, '1');
+    sessionStorage.setItem(ROLE_SESSION_KEY, role);
     setAuthed(true);
   }, []);
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(ROLE_SESSION_KEY);
     setAuthed(false);
   }, []);
 
@@ -402,12 +522,12 @@ function App() {
           <div className="flex-1 overflow-auto p-6">
             <ErrorBoundary>
               <Routes>
-                <Route path="/"          element={<Dashboard />} />
-                <Route path="/analytics" element={<StoreAnalytics />} />
-                <Route path="/marketing" element={<MarketingGenerator />} />
-                <Route path="/assistant" element={<AIAssistant />} />
+                <Route path="/"          element={<ProtectedRoute path="/"><Dashboard /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute path="/analytics"><StoreAnalytics /></ProtectedRoute>} />
+                <Route path="/marketing" element={<ProtectedRoute path="/marketing"><MarketingGenerator /></ProtectedRoute>} />
+                <Route path="/assistant" element={<ProtectedRoute path="/assistant"><AIAssistant /></ProtectedRoute>} />
                 <Route path="/inventory" element={<InventoryInsights />} />
-                <Route path="/settings"  element={<SettingsPage />} />
+                <Route path="/settings"  element={<ProtectedRoute path="/settings"><SettingsPage /></ProtectedRoute>} />
               </Routes>
             </ErrorBoundary>
           </div>
@@ -415,6 +535,8 @@ function App() {
       </div>
       {/* Global floating chatbot */}
       <MunimJi />
+      {/* Zero Trust: session inactivity guard */}
+      <InactivityGuard onLogout={handleLogout} />
     </BrowserRouter>
   );
 }

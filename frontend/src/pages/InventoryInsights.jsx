@@ -1,6 +1,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart } from 'lucide-react';
+
+// ── File upload validation (Assume Breach — ZTA) ──────────────────────────────
+const MAX_FILE_SIZE_MB = 10;
+const ALLOWED_TYPES    = new Set(['text/csv', 'application/vnd.ms-excel', 'application/csv', 'text/plain']);
+function validateCsvFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    return 'Only .csv files are allowed.';
+  }
+  if (!ALLOWED_TYPES.has(file.type) && file.type !== '') {
+    return `Invalid file type "${file.type}". Please upload a CSV file.`;
+  }
+  if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+    return `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is ${MAX_FILE_SIZE_MB} MB.`;
+  }
+  return null; // valid
+}
 import { getInventoryStatus, getSalesSummary, getInventoryFileInfo, uploadInventoryCsv, deleteInventoryFile, getSalesFileInfo, uploadSalesCsv, deleteSalesFile } from '../api';
 
 const PERIODS = [
@@ -55,6 +71,8 @@ function CsvInventoryUpload({ onUploaded }) {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
+    const validationError = validateCsvFile(file);
+    if (validationError) { alert('Upload blocked: ' + validationError); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -165,6 +183,8 @@ function CsvSalesUpload({ onUploaded }) {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
+    const validationError = validateCsvFile(file);
+    if (validationError) { alert('Upload blocked: ' + validationError); return; }
     setUploading(true);
     try {
       const fd = new FormData();

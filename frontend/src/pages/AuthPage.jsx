@@ -2,7 +2,10 @@ import { useState } from 'react';
 import {
   ChevronRight, ChevronLeft, Check,
   Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe, User, Store as StoreIcon,
+  Crown, Handshake, ClipboardList, ShieldAlert,
 } from 'lucide-react';
+
+export const ROLE_SESSION_KEY = 'munimLoginRole';
 import appLogo   from '../assets/app_logo.png';
 import mascotImg from '../assets/mascot_for_chatbot.png';
 import { SETUP_KEY } from '../components/SetupWizard';
@@ -32,7 +35,6 @@ const STEPS = [
       { value: 'owner',   label: 'Owner',   sub: 'I run the store' },
       { value: 'manager', label: 'Manager', sub: 'I manage operations' },
       { value: 'partner', label: 'Partner', sub: 'Business co-owner' },
-      { value: 'staff',   label: 'Staff',   sub: 'Team member' },
     ],
   },
   {
@@ -194,9 +196,49 @@ function WelcomeView({ onLogin, onSetup }) {
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
+const LOGIN_ROLES = [
+  {
+    value: 'owner',
+    label: 'Owner',
+    icon: Crown,
+    sub: 'Full access — all data visible',
+    color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30',
+    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+    iconColor: 'text-emerald-600',
+  },
+  {
+    value: 'partner',
+    label: 'Partner',
+    icon: Handshake,
+    sub: 'Full access — co-owner',
+    color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30',
+    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+    iconColor: 'text-blue-600',
+  },
+  {
+    value: 'manager',
+    label: 'Manager',
+    icon: ClipboardList,
+    sub: 'Operations — no marketing',
+    color: 'border-violet-400 bg-violet-50 dark:bg-violet-950/30',
+    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
+    iconColor: 'text-violet-600',
+  },
+  {
+    value: 'staff',
+    label: 'Staff',
+    icon: ShieldAlert,
+    sub: 'Inventory only — no financial data',
+    color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
+    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+    iconColor: 'text-amber-600',
+  },
+];
+
 function LoginView({ onBack, onDone }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
 
   const inputCls = `w-full px-4 py-3 rounded-xl text-sm transition-colors
     bg-white dark:bg-gray-800
@@ -208,7 +250,7 @@ function LoginView({ onBack, onDone }) {
   return (
     <div className="w-full max-w-sm">
       <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Welcome back</h2>
-      <p className="text-slate-400 dark:text-gray-500 text-sm mb-8">Sign in to continue</p>
+      <p className="text-slate-400 dark:text-gray-500 text-sm mb-6">Sign in to continue</p>
 
       <div className="space-y-3">
         <input type="text" placeholder="Username" value={username}
@@ -218,20 +260,70 @@ function LoginView({ onBack, onDone }) {
       </div>
 
       <button
-        onClick={onDone}
-        className="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 text-white
-          text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-blue-500/30 active:scale-[0.98]"
+        onClick={() => selectedRole && onDone(selectedRole)}
+        disabled={!selectedRole}
+        className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 text-white
+          text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-blue-500/30
+          active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Sign In
       </button>
 
-      <p className="text-center text-xs text-slate-400 dark:text-gray-600 mt-4">
+      <p className="text-center text-xs text-slate-400 dark:text-gray-600 mt-2">
         Demo mode — no credentials required
       </p>
 
+      {/* Role simulation selector */}
+      <div className="mt-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 h-px bg-slate-200 dark:bg-gray-700" />
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
+            Sign in as
+          </span>
+          <div className="flex-1 h-px bg-slate-200 dark:bg-gray-700" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {LOGIN_ROLES.map(role => {
+            const Icon = role.icon;
+            const active = selectedRole === role.value;
+            return (
+              <button
+                key={role.value}
+                onClick={() => setSelectedRole(role.value)}
+                className={`relative text-left px-3 py-3 rounded-xl border-2 transition-all duration-150 ${
+                  active
+                    ? role.color
+                    : 'border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50 hover:border-slate-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon size={13} className={active ? role.iconColor : 'text-slate-400 dark:text-gray-500'} />
+                  <span className={`text-xs font-semibold ${active ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-gray-300'}`}>
+                    {role.label}
+                  </span>
+                  {active && (
+                    <div className="ml-auto w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+                      <Check size={8} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                <p className={`text-[10px] leading-tight ${active ? 'text-slate-500 dark:text-gray-400' : 'text-slate-400 dark:text-gray-600'}`}>
+                  {role.sub}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+        {!selectedRole && (
+          <p className="text-center text-[11px] text-amber-500 mt-2">
+            Select a role to continue
+          </p>
+        )}
+      </div>
+
       <button
         onClick={onBack}
-        className="flex items-center gap-1 mx-auto mt-6 text-xs text-slate-400 dark:text-gray-600
+        className="flex items-center gap-1 mx-auto mt-5 text-xs text-slate-400 dark:text-gray-600
           hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
       >
         <ChevronLeft size={13} /> Back
@@ -462,10 +554,10 @@ export default function AuthPage({ onDone }) {
         <WelcomeView onLogin={() => setView('login')} onSetup={() => setView('setup')} />
       )}
       {view === 'login' && (
-        <LoginView onBack={() => setView('welcome')} onDone={() => onDone()} />
+        <LoginView onBack={() => setView('welcome')} onDone={(role) => onDone(role)} />
       )}
       {view === 'setup' && (
-        <SetupView onBack={() => setView('welcome')} onDone={() => onDone()} />
+        <SetupView onBack={() => setView('welcome')} onDone={() => onDone('owner')} />
       )}
     </PageShell>
   );

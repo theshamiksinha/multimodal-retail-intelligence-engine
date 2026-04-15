@@ -6,6 +6,16 @@ import { chatWithAdvisor, clearAdvisorSession } from '../api';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { ROLE_SESSION_KEY } from './AuthPage';
+
+// ── Role-based access policy injected into every AI request ──────────────────
+const ROLE_AI_POLICY = {
+  owner:   `[SECURITY: Role=Owner. Full access granted — discuss all financial data, revenue, profit, sales trends, growth metrics, and analytics freely.]`,
+  partner: `[SECURITY: Role=Partner. Full access granted — discuss all financial data, revenue, profit, sales trends, growth metrics, and analytics freely.]`,
+  manager: `[SECURITY: Role=Manager. Operational access — discuss store analytics, inventory, and performance trends. Avoid sharing specific profit margin percentages or owner-level financial breakdowns if asked directly.]`,
+  staff:   `[SECURITY: Role=Staff. RESTRICTED ACCESS. You may ONLY answer questions about: (1) current stock levels, (2) whether items are in stock, (3) product locations, (4) reorder status. You MUST REFUSE to share: revenue figures, profit data, sales trends, growth percentages, order values, customer counts, or any financial analytics. If asked for restricted data, say exactly: "I can only help with stock and inventory questions. Please ask your manager for financial information."]`,
+};
+const getRolePolicy = () => ROLE_AI_POLICY[sessionStorage.getItem(ROLE_SESSION_KEY)] || ROLE_AI_POLICY.owner;
 
 const AD_GENERATE_PATTERN  = /\b(generate|create|make|save|turn|convert)\b.{0,30}\b(ads?|advertisements?|campaigns?|posts?)\b/i;
 const EXPIRING_PATTERN     = /\bexpir(ing|ed|es?)\b|\babout to expire\b|\bclearance\b/i;
@@ -238,8 +248,9 @@ export default function AIAssistant() {
 
     setLoading(true);
     try {
-      const langNote = msgLang === 'hi' ? LANG_NOTE_HI : LANG_NOTE_EN;
-      const res = await chatWithAdvisor(msg + langNote);
+      const langNote   = msgLang === 'hi' ? LANG_NOTE_HI : LANG_NOTE_EN;
+      const rolePolicy = getRolePolicy();
+      const res = await chatWithAdvisor(msg + langNote + '\n' + rolePolicy);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: res.data.response,
