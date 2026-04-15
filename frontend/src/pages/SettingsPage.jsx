@@ -11,7 +11,6 @@ const SECTIONS = [
     icon: Users,
     label: 'Daily Customer Footfall',
     options: [
-      { value: 'under_50',  label: 'Under 50',   sub: 'Quiet neighbourhood store' },
       { value: '50_200',    label: '50 – 200',   sub: 'Local convenience store' },
       { value: '200_500',   label: '200 – 500',  sub: 'Busy high-street shop' },
       { value: 'over_500',  label: '500+',        sub: 'High-traffic retail outlet' },
@@ -22,7 +21,6 @@ const SECTIONS = [
     icon: DollarSign,
     label: 'Monthly Revenue',
     options: [
-      { value: 'under_10k',  label: 'Under ₹10K',    sub: 'Early stage / small store' },
       { value: '10k_50k',    label: '₹10K – ₹50K',   sub: 'Growing retailer' },
       { value: '50k_200k',   label: '₹50K – ₹200K',  sub: 'Established mid-size store' },
       { value: 'over_200k',  label: '₹200K+',         sub: 'Large retail operation' },
@@ -33,10 +31,9 @@ const SECTIONS = [
     icon: Maximize2,
     label: 'Store Size',
     options: [
-      { value: 'small',   label: 'Small',       sub: 'Under 500 sq ft' },
-      { value: 'medium',  label: 'Medium',      sub: '500 – 2,000 sq ft' },
-      { value: 'large',   label: 'Large',       sub: '2,000 – 10,000 sq ft' },
-      { value: 'xlarge',  label: 'Extra Large', sub: '10,000+ sq ft' },
+      { value: 'medium',  label: 'Small',   sub: '500 – 2,000 sq ft' },
+      { value: 'large',   label: 'Medium',  sub: '2,000 – 10,000 sq ft' },
+      { value: 'xlarge',  label: 'Large',   sub: '10,000+ sq ft' },
     ],
   },
 ];

@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import {
   Store, ChevronRight, ChevronLeft, Check,
-  Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon,
+  Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe,
 } from 'lucide-react';
 import { SETUP_KEY } from '../components/SetupWizard';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const OPTION_STEPS = [
+  {
+    id: 'language',
+    icon: Globe,
+    question: 'What language do you prefer?',
+    hint: 'Choose your display language',
+    options: [
+      { value: 'en', label: 'English',         sub: 'English interface' },
+      { value: 'hi', label: 'हिंदी (Hindi)',   sub: 'हिंदी इंटरफ़ेस' },
+    ],
+  },
   {
     id: 'footfall',
     icon: Users,
     question: 'How many customers visit your store each day?',
     hint: 'Approximate daily footfall',
     options: [
-      { value: 'under_50',  label: 'Under 50',   sub: 'Quiet neighbourhood store' },
       { value: '50_200',    label: '50 – 200',   sub: 'Local convenience store' },
       { value: '200_500',   label: '200 – 500',  sub: 'Busy high-street shop' },
       { value: 'over_500',  label: '500+',        sub: 'High-traffic retail outlet' },
@@ -25,7 +35,6 @@ const OPTION_STEPS = [
     question: 'What is your approximate monthly revenue?',
     hint: 'Helps us tailor analytics thresholds',
     options: [
-      { value: 'under_10k',  label: 'Under ₹10K',    sub: 'Early stage / small store' },
       { value: '10k_50k',    label: '₹10K – ₹50K',   sub: 'Growing retailer' },
       { value: '50k_200k',   label: '₹50K – ₹200K',  sub: 'Established mid-size store' },
       { value: 'over_200k',  label: '₹200K+',         sub: 'Large retail operation' },
@@ -37,10 +46,9 @@ const OPTION_STEPS = [
     question: 'How would you describe your store size?',
     hint: 'Floor area helps with heatmap zone recommendations',
     options: [
-      { value: 'small',   label: 'Small',       sub: 'Under 500 sq ft' },
-      { value: 'medium',  label: 'Medium',      sub: '500 – 2,000 sq ft' },
-      { value: 'large',   label: 'Large',       sub: '2,000 – 10,000 sq ft' },
-      { value: 'xlarge',  label: 'Extra Large', sub: '10,000+ sq ft' },
+      { value: 'medium',  label: 'Small',   sub: '500 – 2,000 sq ft' },
+      { value: 'large',   label: 'Medium',  sub: '2,000 – 10,000 sq ft' },
+      { value: 'xlarge',  label: 'Large',   sub: '10,000+ sq ft' },
     ],
   },
 ];
@@ -180,6 +188,7 @@ function LoginView({ onBack, onDone }) {
 
 // ── Setup wizard ──────────────────────────────────────────────────────────────
 function SetupView({ onBack, onDone }) {
+  const { i18n } = useTranslation();
   const [step, setStep]         = useState(0);
   const [storeName, setStoreName] = useState('');
   const [answers, setAnswers]   = useState({});
@@ -192,7 +201,8 @@ function SetupView({ onBack, onDone }) {
 
   const next = () => {
     if (isLast) {
-      const isSmall = answers.size === 'small';
+      const isSmall = answers.size === 'medium'; // 'medium' is the smallest option (500–2,000 sq ft)
+      const lang = answers.language || 'en';
       const data = {
         completed: true,
         storeName: storeName.trim(),
@@ -200,6 +210,8 @@ function SetupView({ onBack, onDone }) {
         features: { voiceEntry: isSmall, ocrEntry: isSmall },
       };
       localStorage.setItem(SETUP_KEY, JSON.stringify(data));
+      localStorage.setItem('appLanguage', lang);
+      i18n.changeLanguage(lang);
       onDone(data);
     } else {
       setStep(s => s + 1);
@@ -258,7 +270,10 @@ function SetupView({ onBack, onDone }) {
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setAnswers(a => ({ ...a, [optStep.id]: opt.value }))}
+                    onClick={() => {
+                      setAnswers(a => ({ ...a, [optStep.id]: opt.value }));
+                      if (optStep.id === 'language') i18n.changeLanguage(opt.value);
+                    }}
                     className={`text-left px-4 py-3.5 rounded-xl border transition-all duration-150 ${
                       active
                         ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-600/20 text-slate-900 dark:text-white'
