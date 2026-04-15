@@ -35,7 +35,7 @@ import {
 import {
   listFloorPlans, deleteFloorPlan,
   uploadCameraVideo, processFloorPlan, getFloorPlanStatus,
-  getFloorPlanTrajectories, getSalesSummary,
+  getFloorPlanTrajectories, getSalesSummary, getCameraThumbUrl,
 } from '../api';
 import FloorPlanSetup from './FloorPlanSetup';
 import { useTheme } from '../context/ThemeContext';
@@ -58,6 +58,7 @@ export default function StoreAnalytics() {
   const [loading, setLoading]           = useState(true);
   const [activeTab, setActiveTab]       = useState('heatmap');
   const [videoUploads, setVideoUploads] = useState({});
+  const [thumbnails, setThumbnails]     = useState({});   // camId → data URL
   const [processing, setProcessing]     = useState(false);
   const [trajectories, setTrajectories] = useState(null);
   const [trajLoading, setTrajLoading]   = useState(false);
@@ -130,9 +131,34 @@ export default function StoreAnalytics() {
     return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   }
 
+  // Extract a thumbnail frame from a video file (client-side, no backend needed)
+  const extractThumbnail = (file) => new Promise((resolve) => {
+    const url   = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted      = true;
+    video.playsInline = true;
+    video.preload    = 'metadata';
+    video.src        = url;
+    video.onloadeddata = () => { video.currentTime = Math.min(1, (video.duration || 2) * 0.1); };
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = video.videoWidth  || 320;
+        canvas.height = video.videoHeight || 180;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      } catch { resolve(null); } finally { URL.revokeObjectURL(url); }
+    };
+    video.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+  });
+
   // Called when a file is picked — show the timestamp popup instead of uploading immediately
   const handleFilePicked = (camId, file) => {
     if (!file) return;
+    // Extract thumbnail in background while timestamp modal opens
+    extractThumbnail(file).then(thumb => {
+      if (thumb) setThumbnails(prev => ({ ...prev, [camId]: thumb }));
+    });
     setPendingUpload({ camId, file, recordedAt: _nowDatetimeLocal() });
   };
 
@@ -383,43 +409,125 @@ export default function StoreAnalytics() {
               </div>
             ) : (
               <>
-                <div className="flex-1 space-y-2 overflow-y-auto">
+                <div className="space-y-3 overflow-y-auto max-h-[420px] pr-1">
                   {selectedFloor.cameras.map((cam, i) => {
                     const upload      = videoUploads[cam.id];
                     const isUploading = upload?.status === 'uploading';
                     const uploadDone  = upload?.status === 'done';
                     const uploadError = upload?.status === 'error';
                     const hasExisting = cam.has_video && !upload;
+                    const hasVideo    = uploadDone || hasExisting;
+                    const thumb       = thumbnails[cam.id];
+                    const camColor    = CAM_COLORS[i % CAM_COLORS.length];
 
                     return (
-                      <div key={cam.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-gray-800 rounded-xl">
-                        <div
-                          style={{ background: CAM_COLORS[i % CAM_COLORS.length] }}
-                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                        >
-                          <Camera size={11} className="text-white" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-700 dark:text-gray-300 flex-1 min-w-0 truncate">{cam.name}</span>
-                        {isUploading ? (
-                          <span className="flex items-center gap-1 text-xs text-blue-500 shrink-0">
-                            <Loader2 size={11} className="animate-spin" /> {t('analytics.uploading', 'Uploading')}
-                          </span>
-                        ) : (uploadDone || hasExisting) ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <CheckCircle size={11} className="text-green-500" />
-                            <label className="text-xs text-slate-400 dark:text-gray-500 cursor-pointer hover:text-blue-500 underline underline-offset-2">
-                              {t('analytics.replace', 'Replace')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
-                            </label>
+                      <div key={cam.id}
+                        className="rounded-xl overflow-hidden border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+
+                        {/* ── Thumbnail area ── */}
+                        <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+                          {thumb ? (
+                            /* Freshly picked file — client-side canvas thumbnail */
+                            <img
+                              src={thumb}
+                              alt={cam.name}
+                              className="w-full h-full object-cover"
+                              style={{ filter: 'brightness(0.88) saturate(0.7)' }}
+                            />
+                          ) : hasExisting ? (
+                            /* Already on server — load thumbnail from backend endpoint */
+                            <>
+                              <img
+                                src={getCameraThumbUrl(selectedFloor.session_id, cam.id)}
+                                alt={cam.name}
+                                className="w-full h-full object-cover"
+                                style={{ filter: 'brightness(0.88) saturate(0.7)' }}
+                                onError={e => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextSibling.style.removeProperty('display');
+                                }}
+                              />
+                              {/* Hidden fallback shown only if image fails to load */}
+                              <div className="w-full h-full flex-col items-center justify-center gap-2
+                                bg-slate-800 dark:bg-gray-950 absolute inset-0"
+                                style={{ display: 'none' }}>
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                  style={{ background: camColor }}>
+                                  <Camera size={18} className="text-white" />
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-medium">Footage uploaded</p>
+                              </div>
+                            </>
+                          ) : (
+                            /* No video yet */
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-2
+                              bg-slate-100 dark:bg-gray-800">
+                              <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-gray-700
+                                flex items-center justify-center">
+                                <Camera size={18} className="text-slate-400 dark:text-gray-500" />
+                              </div>
+                              <p className="text-[11px] text-slate-400 dark:text-gray-500">No footage uploaded</p>
+                            </div>
+                          )}
+
+                          {/* Upload overlay spinner */}
+                          {isUploading && (
+                            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+                              <Loader2 size={22} className="text-white animate-spin" />
+                              <p className="text-[11px] text-white/80 font-medium">Uploading…</p>
+                            </div>
+                          )}
+
+                          {/* Status dot top-right */}
+                          <div className="absolute top-2 right-2">
+                            {hasVideo ? (
+                              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shadow shadow-green-400/50 block" />
+                            ) : uploadError ? (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-400 block" />
+                            ) : (
+                              <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-gray-600 block" />
+                            )}
                           </div>
-                        ) : uploadError ? (
-                          <label className="flex items-center gap-1 text-xs text-red-500 cursor-pointer hover:text-red-700 shrink-0">
-                            <Upload size={11} /> {t('analytics.retry', 'Retry')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
-                          </label>
-                        ) : (
-                          <label className="flex items-center gap-1 text-xs text-blue-600 cursor-pointer hover:text-blue-800 shrink-0">
-                            <Upload size={11} /> {t('analytics.upload', 'Upload')}<input type="file" accept="video/*" className="hidden" onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
-                          </label>
-                        )}
+
+                          {/* Camera index badge top-left */}
+                          <div className="absolute top-2 left-2 flex items-center gap-1.5
+                            px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm">
+                            <Camera size={9} className="text-white/80" />
+                            <span className="text-[10px] text-white/90 font-medium">{cam.name}</span>
+                          </div>
+                        </div>
+
+                        {/* ── Bottom bar: name + action ── */}
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: camColor }} />
+                          <span className="text-xs font-medium text-slate-700 dark:text-gray-300 flex-1 truncate">
+                            {cam.name}
+                          </span>
+                          {isUploading ? (
+                            <span className="text-[11px] text-blue-500 shrink-0">Uploading…</span>
+                          ) : (uploadDone || hasExisting) ? (
+                            <label className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-gray-500
+                              cursor-pointer hover:text-blue-500 transition-colors shrink-0">
+                              <Upload size={10} /> Replace
+                              <input type="file" accept="video/*" className="hidden"
+                                onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                            </label>
+                          ) : uploadError ? (
+                            <label className="flex items-center gap-1 text-[11px] text-red-500
+                              cursor-pointer hover:text-red-700 transition-colors shrink-0">
+                              <Upload size={10} /> Retry
+                              <input type="file" accept="video/*" className="hidden"
+                                onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                            </label>
+                          ) : (
+                            <label className="flex items-center gap-1 text-[11px] text-blue-600
+                              cursor-pointer hover:text-blue-800 transition-colors shrink-0">
+                              <Upload size={10} /> Upload
+                              <input type="file" accept="video/*" className="hidden"
+                                onChange={e => handleFilePicked(cam.id, e.target.files[0])} />
+                            </label>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

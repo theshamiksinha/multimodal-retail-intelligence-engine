@@ -38,6 +38,9 @@ export const saveCameraLayout = (sessionId, cameras) =>
   api.post(`/floorplan/session/${sessionId}/cameras`, { cameras });
 export const uploadCameraVideo = (sessionId, cameraId, formData) =>
   api.post(`/floorplan/session/${sessionId}/camera/${cameraId}/video`, formData, { timeout: 120000 });
+// Returns a direct URL (not a promise) — use as <img src={...}>
+export const getCameraThumbUrl = (sessionId, cameraId) =>
+  `/api/floorplan/session/${sessionId}/camera/${cameraId}/thumbnail`;
 export const processFloorPlan = (sessionId, recordedAt) =>
   api.post(`/floorplan/session/${sessionId}/process`, recordedAt ? { recorded_at: recordedAt } : {});
 export const getFloorPlanStatus = (sessionId) =>

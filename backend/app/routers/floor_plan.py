@@ -3,7 +3,9 @@ import uuid
 import shutil
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi.responses import Response
 from pydantic import BaseModel
+import cv2
 
 from app.services import floor_plan_service
 
@@ -141,6 +143,53 @@ async def get_trajectories(session_id: str):
     if not data:
         raise HTTPException(404, "No trajectory data — reprocess the session to generate journeys")
     return data
+
+
+@router.get("/session/{session_id}/camera/{camera_id}/thumbnail")
+async def get_camera_thumbnail(session_id: str, camera_id: str):
+    """Extract and return a JPEG thumbnail from the uploaded camera video."""
+    try:
+        status = floor_plan_service.get_session_status(session_id)
+    except ValueError:
+        raise HTTPException(404, "Session not found")
+
+    # Find the camera and its video path
+    all_cams = floor_plan_service.floor_plan_sessions.get(session_id, {}).get("cameras", [])
+    cam = next((c for c in all_cams if c["id"] == camera_id), None)
+    if not cam:
+        raise HTTPException(404, "Camera not found")
+
+    video_path = cam.get("video_path")
+    if not video_path or not os.path.exists(video_path):
+        raise HTTPException(404, "No video uploaded for this camera")
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise HTTPException(500, "Could not open video file")
+
+    try:
+        # Seek to 1 second in for a more representative frame
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        cap.set(cv2.CAP_PROP_POS_FRAMES, min(int(fps), int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) - 1))
+        ret, frame = cap.read()
+        if not ret:
+            # Fall back to first frame
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+        if not ret:
+            raise HTTPException(500, "Could not read frame from video")
+
+        # Resize to thumbnail size (max 640px wide)
+        h, w = frame.shape[:2]
+        if w > 640:
+            scale = 640 / w
+            frame = cv2.resize(frame, (640, int(h * scale)), interpolation=cv2.INTER_AREA)
+
+        _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        return Response(content=buf.tobytes(), media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=3600"})
+    finally:
+        cap.release()
 
 
 @router.get("/sessions")
