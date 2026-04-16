@@ -310,7 +310,7 @@ export default function StoreAnalytics() {
       {selectedFloor?.status === 'done' && (
         <div className="flex gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl w-fit flex-wrap">
           {[
-            { id: 'heatmap',  label: t('analytics.tabHeatmap', 'Heatmap') },
+            { id: 'heatmap',  label: t('analytics.tabHeatmap', 'Heatmaps & Analytics') },
             { id: 'journeys', label: t('analytics.tabJourneys', 'Customer Journeys'), icon: <Footprints size={12}/> },
             { id: 'zones',    label: t('analytics.tabZones', 'Zones') },
           ].map(tab => (
@@ -348,7 +348,7 @@ export default function StoreAnalytics() {
 
       {/* Heatmap tab */}
       {selectedFloor && (activeTab === 'heatmap' || selectedFloor.status !== 'done') && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div key={`heatmap-${activeTab}`} className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-tab-switch">
 
           {/* Floor plan / heatmap */}
           <div className={`${CARD} p-5 lg:col-span-2`}>
@@ -567,7 +567,7 @@ export default function StoreAnalytics() {
 
       {/* Zone summary under heatmap tab */}
       {activeTab === 'heatmap' && selectedFloor?.status === 'done' && selectedFloor.zones?.length > 0 && (
-        <div className={`${CARD} p-5`}>
+        <div className={`${CARD} p-5 animate-tab-switch`}>
           <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
             <Clock size={14} className="text-blue-500" /> {t('analytics.zoneSummary', 'Camera Zone Summary')}
           </h3>
@@ -595,7 +595,7 @@ export default function StoreAnalytics() {
 
       {/* Zones tab */}
       {activeTab === 'zones' && selectedFloor?.status === 'done' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-tab-switch">
           {selectedFloor.zones?.length > 0 ? selectedFloor.zones.map((zone, i) => (
             <div key={i} className={`${CARD} p-5`}>
               <div className="flex items-center gap-2 mb-2">
@@ -620,16 +620,30 @@ export default function StoreAnalytics() {
 
       {/* Journeys tab */}
       {activeTab === 'journeys' && selectedFloor?.status === 'done' && (
-        <JourneysTab
-          floor={selectedFloor}
-          trajectories={trajectories}
-          loading={trajLoading}
-        />
+        <div className="animate-tab-switch">
+          <JourneysTab
+            floor={selectedFloor}
+            trajectories={trajectories}
+            loading={trajLoading}
+          />
+        </div>
       )}
 
-      {/* ─── Sales Analytics ──────────────────────────────────── */}
-      {sales && (
-        <div className="space-y-5 animate-fade-in-up">
+      {/* ─── Sales Analytics (Heatmap & Analytics tab only) ───── */}
+      {activeTab === 'heatmap' && sales && (
+        <div className="space-y-5 animate-tab-switch">
+
+          {/* Section heading */}
+          <div className="flex items-center gap-4 pt-12 pb-4">
+            <div className="flex-1 h-px bg-slate-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2.5 px-1">
+              <TrendingUp size={17} className="text-blue-500 shrink-0" />
+              <span className="text-lg font-bold text-slate-800 dark:text-gray-100 whitespace-nowrap">
+                Here's what's happening in your store
+              </span>
+            </div>
+            <div className="flex-1 h-px bg-slate-200 dark:bg-gray-700" />
+          </div>
 
           {/* KPI row 1 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1001,7 +1015,13 @@ function JourneysTab({ floor, trajectories, loading }) {
   const floorImgRef       = useRef(null);
   const floorImgLoadedRef = useRef(false);
 
-  const [mode,        setMode]        = useState('individual'); // 'individual' | 'crowd'
+  // Read individual paths setting (off by default per Zero Trust / privacy setting)
+  const individualPathsEnabled = (() => {
+    try { return JSON.parse(localStorage.getItem('retailIntelSetup'))?.features?.individualPaths === true; }
+    catch { return false; }
+  })();
+
+  const [mode, setMode] = useState(individualPathsEnabled ? 'individual' : 'crowd');
   const [playhead,    setPlayhead]    = useState(0);
   const [isPlaying,   setIsPlaying]   = useState(false);
   const [speed,       setSpeed]       = useState(1);
@@ -1154,12 +1174,12 @@ function JourneysTab({ floor, trajectories, loading }) {
     <div className="space-y-4">
 
       {/* ── Mode toggle ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex bg-slate-100 dark:bg-gray-800 p-1 rounded-xl">
           {[
             { id: 'individual', label: 'Individual Paths', icon: <Footprints size={12}/> },
             { id: 'crowd',      label: 'Crowd Flow',       icon: <Wind size={12}/> },
-          ].map(m => (
+          ].filter(m => m.id !== 'individual' || individualPathsEnabled).map(m => (
             <button
               key={m.id}
               onClick={() => setMode(m.id)}
@@ -1173,7 +1193,12 @@ function JourneysTab({ floor, trajectories, loading }) {
             </button>
           ))}
         </div>
-        {mode === 'crowd' && (
+        {!individualPathsEnabled && (
+          <p className="text-xs text-slate-400 dark:text-gray-500">
+            Individual paths disabled · enable in <span className="font-medium text-blue-500">Settings → Features</span>
+          </p>
+        )}
+        {individualPathsEnabled && mode === 'crowd' && (
           <p className="text-xs text-slate-400 dark:text-gray-500">
             Auto-playing · average traffic direction across all tracked customers
           </p>

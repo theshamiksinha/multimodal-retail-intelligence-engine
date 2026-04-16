@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ChevronRight, ChevronLeft, Check,
   Users, DollarSign, Maximize2, LogIn, Sparkles, Sun, Moon, Globe, User, Store as StoreIcon,
-  Crown, Handshake, ClipboardList, ShieldAlert,
+  Crown, ClipboardList, ShieldAlert,
 } from 'lucide-react';
 
 export const ROLE_SESSION_KEY = 'munimLoginRole';
@@ -34,7 +34,6 @@ const STEPS = [
     roles: [
       { value: 'owner',   label: 'Owner',   sub: 'I run the store' },
       { value: 'manager', label: 'Manager', sub: 'I manage operations' },
-      { value: 'partner', label: 'Partner', sub: 'Business co-owner' },
     ],
   },
   {
@@ -141,8 +140,8 @@ function WelcomeView({ onLogin, onSetup }) {
           <img
             src={mascotImg}
             alt="Munim Ji"
-            className="w-[68%] h-[68%] object-contain"
-            style={{ filter: 'sepia(1) hue-rotate(200deg) saturate(6) brightness(0.55)' }}
+            className="w-[78%] h-[78%] object-contain"
+            style={{ objectPosition: '60% center', transform: 'translateX(6px)' }}
           />
         </div>
         {/* Orange AI badge */}
@@ -207,19 +206,10 @@ const LOGIN_ROLES = [
     iconColor: 'text-emerald-600',
   },
   {
-    value: 'partner',
-    label: 'Partner',
-    icon: Handshake,
-    sub: 'Full access — co-owner',
-    color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30',
-    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
-    iconColor: 'text-blue-600',
-  },
-  {
     value: 'manager',
     label: 'Manager',
     icon: ClipboardList,
-    sub: 'Operations — no marketing',
+    sub: 'Full access — manages the store',
     color: 'border-violet-400 bg-violet-50 dark:bg-violet-950/30',
     badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
     iconColor: 'text-violet-600',

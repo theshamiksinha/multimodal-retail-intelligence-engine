@@ -1320,7 +1320,7 @@ export default function MarketingGenerator() {
 
       {/* ═══ CREATE TAB ══════════════════════════════════════════════════════ */}
       {tab==='create' && (
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 animate-tab-switch">
           <div className="xl:col-span-2 space-y-3">
 
             {/* STEP 1 */}
@@ -1607,7 +1607,7 @@ export default function MarketingGenerator() {
 
       {/* ═══ CALENDAR TAB ════════════════════════════════════════════════════ */}
       {tab==='calendar'&&(
-        <div className="space-y-4">
+        <div className="space-y-4 animate-tab-switch">
           <div className="flex items-center justify-between p-4 bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 rounded-2xl border border-violet-100 dark:border-violet-800/40">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center shrink-0"><Zap size={18} className="text-white"/></div>
@@ -1700,7 +1700,7 @@ export default function MarketingGenerator() {
       )}
 
       {/* ═══ DRAFTS TAB ══════════════════════════════════════════════════════ */}
-      {tab==='drafts' && <DraftsTab />}
+      {tab==='drafts' && <div className="animate-tab-switch"><DraftsTab /></div>}
     </div>
   );
 }

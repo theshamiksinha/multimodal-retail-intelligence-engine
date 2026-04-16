@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, DollarSign, Maximize2, Check, Save, Store, Mic, ScanText, Globe } from 'lucide-react';
+import { Users, DollarSign, Maximize2, Check, Save, Store, Mic, ScanText, Globe, Footprints } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SETUP_KEY } from '../components/SetupWizard';
 
@@ -51,6 +51,13 @@ const FEATURE_TOGGLES = [
     label: 'OCR Inventory Entry',
     sub: 'Scan handwritten notes, labels, or bills',
   },
+  {
+    key: 'individualPaths',
+    icon: Footprints,
+    label: 'Individual Paths Tracking',
+    sub: 'Show per-customer journey paths in the Customer Journeys tab',
+    defaultOff: true,
+  },
 ];
 
 function getStored() {
@@ -79,7 +86,7 @@ export default function SettingsPage() {
   const stored = getStored();
   const [storeName, setStoreName] = useState(stored.storeName || '');
   const [answers, setAnswers]     = useState(stored);
-  const [features, setFeatures]   = useState(stored.features || { voiceEntry: false, ocrEntry: false });
+  const [features, setFeatures]   = useState({ voiceEntry: false, ocrEntry: false, individualPaths: false, ...stored.features });
   const [lang, setLangState]      = useState(localStorage.getItem('appLanguage') || i18n.language || 'en');
   const [saved, setSaved]         = useState(false);
 
@@ -218,7 +225,7 @@ export default function SettingsPage() {
 
       {/* Inventory input features */}
       <div className={`${CARD} p-5`}>
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100 mb-1">{t('settings.inputMethods', 'Inventory Input Methods')}</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-gray-100 mb-1">{t('settings.inputMethods', 'Advanced Settings')}</h3>
         <p className="text-xs text-slate-400 dark:text-gray-500 mb-4">
           {t('settings.inputMethodsSub', 'CSV / Excel import is always available. Enable additional methods below.')}
         </p>

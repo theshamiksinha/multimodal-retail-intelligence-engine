@@ -28,8 +28,7 @@ import './index.css';
 // ── Role permissions ───────────────────────────────────────────────────────────
 const ROLE_PERMS = {
   owner:   { pages: new Set(['/', '/analytics', '/marketing', '/assistant', '/inventory', '/settings']), financial: true,  label: 'Owner',   badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-  partner: { pages: new Set(['/', '/analytics', '/marketing', '/assistant', '/inventory', '/settings']), financial: true,  label: 'Partner', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-  manager: { pages: new Set(['/', '/analytics', '/assistant', '/inventory', '/settings']),               financial: false, label: 'Manager', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+  manager: { pages: new Set(['/', '/analytics', '/marketing', '/assistant', '/inventory', '/settings']), financial: true,  label: 'Manager', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
   staff:   { pages: new Set(['/inventory', '/assistant']),                                               financial: false, label: 'Staff',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
 };
 const getLoginRole = () => sessionStorage.getItem(ROLE_SESSION_KEY) || 'owner';
@@ -220,8 +219,7 @@ const FLOAT_LANG_EN = '\n\n[Note: User is writing in English. Please respond in 
 
 const FLOAT_ROLE_POLICY = {
   owner:   `[SECURITY: Role=Owner. Full access — discuss all financial data freely.]`,
-  partner: `[SECURITY: Role=Partner. Full access — discuss all financial data freely.]`,
-  manager: `[SECURITY: Role=Manager. Operational access — discuss analytics and inventory. Avoid detailed profit breakdowns.]`,
+  manager: `[SECURITY: Role=Manager. Full access granted — discuss all financial data, revenue, profit, sales trends, growth metrics, and analytics freely.]`,
   staff:   `[SECURITY: Role=Staff. RESTRICTED. Only answer stock/inventory questions. REFUSE revenue, profit, or financial data.]`,
 };
 const getFloatRolePolicy = () => FLOAT_ROLE_POLICY[sessionStorage.getItem(ROLE_SESSION_KEY)] || FLOAT_ROLE_POLICY.owner;
