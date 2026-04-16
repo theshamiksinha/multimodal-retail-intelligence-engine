@@ -88,8 +88,8 @@ export default function Dashboard() {
       getInventoryStatus().catch(() => null),
       listFloorPlans().catch(() => null),
     ]).then(([s, i, f]) => {
-      setSales(s?.data || null);
-      setInventory(i?.data || null);
+      setSales(s?.data?.no_data ? null : s?.data || null);
+      setInventory(i?.data?.no_data ? null : i?.data || null);
       const all = f?.data?.sessions || [];
       setFloors(all);
       if (all.length > 0) setSelectedFloor(all[0]);

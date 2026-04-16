@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Package, TrendingDown, Clock, Upload, Trash2, Loader2, FileSpreadsheet, ShoppingCart, Search } from 'lucide-react';
 
 // ── File upload validation (Assume Breach — ZTA) ──────────────────────────────
 const MAX_FILE_SIZE_MB = 10;
@@ -287,14 +287,17 @@ export default function InventoryInsights() {
   const [sales, setSales]         = useState(null);
   const [loading, setLoading]     = useState(true);
   const [period, setPeriod]       = useState('monthly');
+  const [expirySearch, setExpirySearch]   = useState('');
+  const [lowStockSearch, setLowStockSearch] = useState('');
+  const [fullSearch, setFullSearch]       = useState('');
 
   const fetchData = () => {
     Promise.all([
       getInventoryStatus().catch(() => null),
       getSalesSummary().catch(() => null),
     ]).then(([i, s]) => {
-      setInventory(i?.data);
-      setSales(s?.data);
+      setInventory(i?.data?.no_data ? null : i?.data ?? null);
+      setSales(s?.data?.no_data ? null : s?.data ?? null);
       setLoading(false);
     });
   };
@@ -386,51 +389,83 @@ export default function InventoryInsights() {
 
           {/* Expiry + Low stock */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className={`${CARD} p-5`}>
-              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-                <AlertTriangle size={14} className="text-amber-500" /> {t('dashboard.expiring', 'Expiring Soon')}
-              </h3>
+            {/* Expiring Soon */}
+            <div className={`${CARD} p-5 flex flex-col`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-2">
+                  <AlertTriangle size={14} className="text-amber-500" /> {t('dashboard.expiring', 'Expiring Soon')}
+                  <span className="ml-1 text-xs font-normal text-slate-400 dark:text-gray-500">({inventory.expiring_soon?.length ?? 0})</span>
+                </h3>
+              </div>
+              <div className="relative mb-3">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={expirySearch}
+                  onChange={e => setExpirySearch(e.target.value)}
+                  placeholder="Search products…"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-300 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+              </div>
               {inventory.expiring_soon?.length > 0 ? (
-                <div className="space-y-2">
-                  {inventory.expiring_soon.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
-                        <p className="text-xs text-slate-500 dark:text-gray-400">{item.category} · {item.current_stock} in stock</p>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {inventory.expiring_soon
+                    .filter(item => item.product_name?.toLowerCase().includes(expirySearch.toLowerCase()) || item.category?.toLowerCase().includes(expirySearch.toLowerCase()))
+                    .map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
+                          <p className="text-xs text-slate-500 dark:text-gray-400">{item.category} · {item.current_stock} in stock</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          item.days_to_expiry <= 3
+                            ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'
+                            : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
+                        }`}>
+                          {item.days_to_expiry}d left
+                        </span>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        item.days_to_expiry <= 3
-                          ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'
-                          : 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
-                      }`}>
-                        {item.days_to_expiry}d left
-                      </span>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">No products expiring soon</p>
               )}
             </div>
 
-            <div className={`${CARD} p-5`}>
-              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4 flex items-center gap-2">
-                <TrendingDown size={14} className="text-red-500" /> {t('inventory.lowStockAlert', 'Low Stock Alert')}
-              </h3>
+            {/* Low Stock Alert */}
+            <div className={`${CARD} p-5 flex flex-col`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm flex items-center gap-2">
+                  <TrendingDown size={14} className="text-red-500" /> {t('inventory.lowStockAlert', 'Low Stock Alert')}
+                  <span className="ml-1 text-xs font-normal text-slate-400 dark:text-gray-500">({inventory.low_stock?.length ?? 0})</span>
+                </h3>
+              </div>
+              <div className="relative mb-3">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={lowStockSearch}
+                  onChange={e => setLowStockSearch(e.target.value)}
+                  placeholder="Search products…"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-300 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+              </div>
               {inventory.low_stock?.length > 0 ? (
-                <div className="space-y-2">
-                  {inventory.low_stock.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
-                        <p className="text-xs text-slate-500 dark:text-gray-400">{item.category}</p>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {inventory.low_stock
+                    .filter(item => item.product_name?.toLowerCase().includes(lowStockSearch.toLowerCase()) || item.category?.toLowerCase().includes(lowStockSearch.toLowerCase()))
+                    .map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 rounded-xl">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-gray-100">{item.product_name}</p>
+                          <p className="text-xs text-slate-500 dark:text-gray-400">{item.category}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.current_stock} units</p>
+                          <p className="text-xs text-slate-400 dark:text-gray-500">Reorder at {item.reorder_point}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-red-600 dark:text-red-400">{item.current_stock} units</p>
-                        <p className="text-xs text-slate-400 dark:text-gray-500">Reorder at {item.reorder_point}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <p className="text-sm text-slate-400 dark:text-gray-500 py-6 text-center">All products adequately stocked</p>
@@ -440,10 +475,25 @@ export default function InventoryInsights() {
 
           {/* Full inventory table */}
           <div className={`${CARD} p-5`}>
-            <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm mb-4">{t('inventory.fullTitle', 'Full Inventory')}</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-800 dark:text-gray-100 text-sm">
+                {t('inventory.fullTitle', 'Full Inventory')}
+                <span className="ml-2 text-xs font-normal text-slate-400 dark:text-gray-500">({inventory.all_items?.length ?? 0} items)</span>
+              </h3>
+              <div className="relative w-52">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={fullSearch}
+                  onChange={e => setFullSearch(e.target.value)}
+                  placeholder="Search inventory…"
+                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-300 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
                   <tr className="border-b border-slate-100 dark:border-gray-800">
                     <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.prod', 'Product')}</th>
                     <th className="pb-3 text-left text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.cat', 'Category')}</th>
@@ -453,29 +503,38 @@ export default function InventoryInsights() {
                     <th className="pb-3 text-center text-xs font-medium text-slate-400 dark:text-gray-500 uppercase tracking-wide">{t('inventory.status', 'Status')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
-                  {inventory.all_items?.map((item, i) => (
-                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
-                      <td className="py-3 text-slate-800 dark:text-gray-200 font-medium">{item.product_name}</td>
-                      <td className="py-3 text-slate-500 dark:text-gray-400">{item.category}</td>
-                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">{item.current_stock}</td>
-                      <td className="py-3 text-right text-slate-800 dark:text-gray-200">₹{item.unit_price}</td>
-                      <td className="py-3 text-right text-slate-500 dark:text-gray-400">
-                        {item.days_to_expiry != null ? `${item.days_to_expiry}d` : '—'}
-                      </td>
-                      <td className="py-3 text-center">
-                        {item.current_stock <= item.reorder_point ? (
-                          <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium animate-pulse">{t('inventory.statusLow', 'Low')}</span>
-                        ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
-                          <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">{t('inventory.statusExpiring', 'Expiring')}</span>
-                        ) : (
-                          <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">{t('inventory.statusOk', 'OK')}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
+                    {(inventory.all_items ?? [])
+                      .filter(item =>
+                        item.product_name?.toLowerCase().includes(fullSearch.toLowerCase()) ||
+                        item.category?.toLowerCase().includes(fullSearch.toLowerCase())
+                      )
+                      .map((item, i) => (
+                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
+                          <td className="py-3 text-slate-800 dark:text-gray-200 font-medium">{item.product_name}</td>
+                          <td className="py-3 text-slate-500 dark:text-gray-400">{item.category}</td>
+                          <td className="py-3 text-right text-slate-800 dark:text-gray-200">{item.current_stock}</td>
+                          <td className="py-3 text-right text-slate-800 dark:text-gray-200">₹{item.unit_price}</td>
+                          <td className="py-3 text-right text-slate-500 dark:text-gray-400">
+                            {item.days_to_expiry != null ? `${item.days_to_expiry}d` : '—'}
+                          </td>
+                          <td className="py-3 text-center">
+                            {item.current_stock <= item.reorder_point ? (
+                              <span className="px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 rounded-full text-xs font-medium animate-pulse">{t('inventory.statusLow', 'Low')}</span>
+                            ) : item.days_to_expiry != null && item.days_to_expiry <= 7 ? (
+                              <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-full text-xs font-medium">{t('inventory.statusExpiring', 'Expiring')}</span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">{t('inventory.statusOk', 'OK')}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </>

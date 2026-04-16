@@ -82,7 +82,7 @@ export default function StoreAnalytics() {
   };
 
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { getSalesSummary().then(r => setSales(r?.data)).catch(() => {}); }, []);
+  useEffect(() => { getSalesSummary().then(r => setSales(r?.data?.no_data ? null : r?.data ?? null)).catch(() => {}); }, []);
 
   useEffect(() => {
     setVideoUploads({});

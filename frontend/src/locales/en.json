@@ -38,6 +38,10 @@
       "size": {
         "hint": "Floor area helps with heatmap zone recommendations",
         "question": "How would you describe your store size?"
+      },
+      "profile": {
+        "hint": "Your name and role in the store",
+        "question": "Tell us about yourself"
       }
     },
     "back": "Back",

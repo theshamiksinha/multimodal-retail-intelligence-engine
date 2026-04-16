@@ -402,7 +402,7 @@ function SetupView({ onBack, onDone }) {
     const header = (
       <div className="flex items-center gap-2 mb-1">
         {Icon && <Icon size={14} className="text-blue-500" />}
-        <span className={hintCls}>{hint}</span>
+        <span className={hintCls}>{t(`wizard.steps.${id}.hint`, hint)}</span>
       </div>
     );
 
@@ -410,7 +410,7 @@ function SetupView({ onBack, onDone }) {
       return (
         <>
           {header}
-          <h2 className={titleCls}>{question}</h2>
+          <h2 className={titleCls}>{t(`wizard.steps.${id}.question`, question)}</h2>
           <input
             type="text"
             autoFocus
@@ -428,7 +428,7 @@ function SetupView({ onBack, onDone }) {
       return (
         <>
           {header}
-          <h2 className={titleCls}>{question}</h2>
+          <h2 className={titleCls}>{t(`wizard.steps.${id}.question`, question)}</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-1.5">
@@ -469,7 +469,7 @@ function SetupView({ onBack, onDone }) {
     return (
       <>
         {header}
-        <h2 className={titleCls}>{question}</h2>
+        <h2 className={titleCls}>{t(`wizard.steps.${id}.question`, question)}</h2>
         <div className="grid grid-cols-2 gap-3">
           {options.map(opt => (
             <OptionCard
@@ -512,7 +512,7 @@ function SetupView({ onBack, onDone }) {
             hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={15} />
-          {step === 0 ? 'Back' : 'Previous'}
+          {step === 0 ? t('wizard.back', 'Back') : t('wizard.previous', 'Previous')}
         </button>
 
         <button
@@ -522,13 +522,13 @@ function SetupView({ onBack, onDone }) {
             disabled:opacity-40 disabled:cursor-not-allowed
             text-white text-sm font-medium rounded-xl transition-colors"
         >
-          {isLast ? 'Get Started' : 'Next'}
+          {isLast ? t('wizard.getStarted', 'Get Started') : t('wizard.next', 'Next')}
           {!isLast && <ChevronRight size={15} />}
         </button>
       </div>
 
       <p className="text-center text-xs text-slate-400 dark:text-gray-600 mt-5">
-        Step {step + 1} of {TOTAL_STEPS} · Your answers stay on this device
+        {t('wizard.stepProgress', { step: step + 1, total: TOTAL_STEPS, defaultValue: `Step ${step + 1} of ${TOTAL_STEPS} · Your answers stay on this device` })}
       </p>
     </div>
   );

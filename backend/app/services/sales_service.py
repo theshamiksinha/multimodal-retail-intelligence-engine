@@ -244,16 +244,26 @@ def load_sales_csv(file_path: str):
     return {"records": len(_sales_data)}
 
 
+def reset_sales():
+    global _sales_data
+    _sales_data = None
+
+
 def load_inventory_csv(file_path: str):
     global _inventory_data
     _inventory_data = pd.read_csv(file_path)
     return {"records": len(_inventory_data)}
 
 
+def reset_inventory():
+    global _inventory_data
+    _inventory_data = None
+
+
 # ── Sales Summary ─────────────────────────────────────────────────────────────
 def get_sales_summary() -> dict:
     if _sales_data is None:
-        generate_sample_data()
+        return {**_empty_sales_response(), "no_data": True}
 
     try:
         pl_df = pl.from_pandas(_sales_data)
@@ -467,7 +477,7 @@ def get_sales_summary() -> dict:
 # ── Inventory Status ──────────────────────────────────────────────────────────
 def get_inventory_status() -> dict:
     if _inventory_data is None:
-        generate_sample_data()
+        return {**_empty_inventory_response(), "no_data": True}
 
     try:
         inv_pl = pl.from_pandas(_inventory_data)
