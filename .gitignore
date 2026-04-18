@@ -69,6 +69,7 @@ backend/uploads
 backend/data
 Zero Trust Architecture.pdf
 munim_ai_questionnaire.txt
+security_implementation_details.txt
 data
 
 # Package lock files (uncomment only if needed)
